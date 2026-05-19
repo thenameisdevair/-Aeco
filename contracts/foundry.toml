@@ -1,0 +1,16 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib", "../node_modules"]
+remappings = [
+    "@openzeppelin/contracts/=../node_modules/@openzeppelin/contracts/",
+    "@openzeppelin/contracts-upgradeable/=../node_modules/@openzeppelin/contracts-upgradeable/contracts/",
+]
+
+[rpc_endpoints]
+celo_mainnet = "https://forno.celo.org"
+celo_testnet = "https://forno.celo-sepolia.celo-testnet.org"
+
+[etherscan]
+celo_testnet = { key = "${CELOSCAN_API_KEY}", url = "https://api-sepolia.celoscan.io/api" }
+celo_mainnet = { key = "${CELOSCAN_API_KEY}", url = "https://api.celoscan.io/api" }
