@@ -102,7 +102,7 @@ function TopNav({ balance, lastScan, accent, activeTab, onChangeTab, loading, on
             {!isMiniPay && (
               <button
                 className="px-3.5 py-1.5 rounded-md text-ink text-[12.5px] font-bold tracking-wide transition-opacity active:opacity-80 hover:opacity-90 font-mono"
-                onClick={onConnect}
+                onClick={() => walletAddress ? onChangeTab('wallet') : onConnect()}
                 style={{
                   background: accent,
                   boxShadow: `0 0 0 1px ${accent}40, 0 8px 30px -8px ${accent}66`,
@@ -463,7 +463,8 @@ function PredictScreen({ accent, onPredict, subjects }) {
 }
 
 /* ===================== Wallet screen ===================== */
-function WalletScreen({ accent, balance, isMiniPay, walletAddress }) {
+function WalletScreen({ accent, balance, isMiniPay, walletAddress, onConnect, onDisconnect }) {
+  console.log('[WalletScreen] walletAddress:', walletAddress);
   const shortAddress = walletAddress
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : null;
@@ -524,12 +525,20 @@ function WalletScreen({ accent, balance, isMiniPay, walletAddress }) {
 
           <div className="flex gap-3">
             {!isMiniPay && (
-              <button
-                className="px-5 py-2.5 rounded-md text-[13px] font-semibold text-ink hover:opacity-90 transition-opacity"
-                style={{ background: accent, boxShadow: `0 0 0 1px ${accent}40, 0 8px 30px -8px ${accent}66` }}
-              >
-                Connect Celo Wallet
-              </button>
+              walletAddress
+                ? <button
+                    onClick={onDisconnect}
+                    className="px-5 py-2.5 rounded-md text-[13px] font-semibold text-gray-200 bg-white/[0.04] ring-1 ring-inset ring-white/[0.08] hover:bg-bear/10 hover:ring-bear/30 hover:text-bear transition"
+                  >
+                    Disconnect
+                  </button>
+                : <button
+                    onClick={onConnect}
+                    className="px-5 py-2.5 rounded-md text-[13px] font-semibold text-ink hover:opacity-90 transition-opacity"
+                    style={{ background: accent, boxShadow: `0 0 0 1px ${accent}40, 0 8px 30px -8px ${accent}66` }}
+                  >
+                    Connect Celo Wallet
+                  </button>
             )}
             <button className="px-5 py-2.5 rounded-md text-[13px] font-semibold text-gray-200 bg-white/[0.04] ring-1 ring-inset ring-white/[0.08] hover:bg-white/[0.07] transition">
               How to earn
@@ -655,6 +664,12 @@ function App() {
     }
   };
 
+  const handleDisconnect = () => {
+    setWalletAddress(null);
+    setBalance(0);
+    setIsMiniPay(false);
+  };
+
   const handlePredict = (subject) => setModalSubject(subject);
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -692,7 +707,7 @@ function App() {
         {activeTab === 'feed'    && <FeedScreen filter={filter} setFilter={setFilter} onPredict={handlePredict} tweaks={t} subjects={subjects} />}
         {activeTab === 'agent'   && <AgentScreen accent={t.accent} activity={activity} totalHeartbeats={totalHeartbeats} />}
         {activeTab === 'predict' && <PredictScreen accent={t.accent} onPredict={handlePredict} subjects={subjects} />}
-        {activeTab === 'wallet'  && <WalletScreen accent={t.accent} balance={balance} isMiniPay={isMiniPay} walletAddress={walletAddress} />}
+        {activeTab === 'wallet'  && <WalletScreen accent={t.accent} balance={balance} isMiniPay={isMiniPay} walletAddress={walletAddress} onConnect={handleConnect} onDisconnect={handleDisconnect} />}
       </main>
 
       <PredictionModal subject={modalSubject} onClose={() => setModalSubject(null)} />
