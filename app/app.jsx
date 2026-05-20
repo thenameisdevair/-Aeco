@@ -19,7 +19,7 @@ const ACCENT_OPTIONS = [
 ];
 
 /* ===================== Top nav with tabs ===================== */
-function TopNav({ balance, lastScan, accent, activeTab, onChangeTab, loading, onConnect, isMiniPay }) {
+function TopNav({ balance, lastScan, accent, activeTab, onChangeTab, loading, onConnect, isMiniPay, walletAddress }) {
   const tabs = [
     { id: 'feed',    label: 'Feed' },
     { id: 'predict', label: 'Predict' },
@@ -99,16 +99,20 @@ function TopNav({ balance, lastScan, accent, activeTab, onChangeTab, loading, on
                 MiniPay
               </span>
             )}
-            <button
-              className="px-3.5 py-1.5 rounded-md text-ink text-[12.5px] font-bold tracking-wide transition-opacity active:opacity-80 hover:opacity-90"
-              onClick={onConnect}
-              style={{
-                background: accent,
-                boxShadow: `0 0 0 1px ${accent}40, 0 8px 30px -8px ${accent}66`,
-              }}
-            >
-              Connect Wallet
-            </button>
+            {!isMiniPay && (
+              <button
+                className="px-3.5 py-1.5 rounded-md text-ink text-[12.5px] font-bold tracking-wide transition-opacity active:opacity-80 hover:opacity-90 font-mono"
+                onClick={onConnect}
+                style={{
+                  background: accent,
+                  boxShadow: `0 0 0 1px ${accent}40, 0 8px 30px -8px ${accent}66`,
+                }}
+              >
+                {walletAddress
+                  ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+                  : 'Connect Wallet'}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -560,7 +564,7 @@ function App() {
   const [balance, setBalance]         = useState(1284);
   const [loading, setLoading]         = useState(false);
   const [walletAddress, setWalletAddress] = useState(null);
-  const isMiniPay = Boolean(window.ethereum?.isMiniPay);
+  const [isMiniPay, setIsMiniPay] = useState(Boolean(window.ethereum?.isMiniPay));
 
   useEffect(() => {
     let cancelled = false;
@@ -591,21 +595,35 @@ function App() {
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
-  // Auto-connect when running inside MiniPay
+  // Auto-connect when running inside MiniPay.
+  // MiniPay injects window.ethereum slightly after page load, so we wait 1s.
+  // Uses viem createWalletClient with custom(window.ethereum) per Celo docs.
+  // MiniPay only supports legacy transactions — omit maxFeePerGas/maxPriorityFeePerGas
+  // and use type: 'legacy' when building any transaction object for predictions.
   useEffect(() => {
-    if (!window.ethereum?.isMiniPay) return;
-    window.ethereum.request({ method: 'eth_requestAccounts' })
-      .then(async (accounts) => {
-        const address = accounts?.[0];
-        if (!address) return;
-        setWalletAddress(address);
-        const bal = await window.AecoData?.fetchTokenBalance?.(address);
-        if (bal) {
-          const num = parseInt(bal.replace(/,/g, ''), 10);
-          if (!isNaN(num)) setBalance(num);
-        }
-      })
-      .catch(console.error);
+    const timer = setTimeout(() => {
+      if (!window.ethereum || !window.ethereum.isMiniPay) return;
+      setIsMiniPay(true);
+      import('https://esm.sh/viem@2.50.4').then(({ createWalletClient, custom }) => {
+        import('https://esm.sh/viem@2.50.4/chains').then(({ celo }) => {
+          const walletClient = createWalletClient({
+            chain: celo,
+            transport: custom(window.ethereum),
+          });
+          walletClient.getAddresses().then(async (addresses) => {
+            const address = addresses[0];
+            if (!address) return;
+            setWalletAddress(address);
+            const bal = await window.AecoData?.fetchTokenBalance?.(address);
+            if (bal) {
+              const num = parseInt(bal.replace(/,/g, ''), 10);
+              if (!isNaN(num)) setBalance(num);
+            }
+          }).catch(console.error);
+        });
+      });
+    }, 1000);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleConnect = async () => {
@@ -615,6 +633,7 @@ function App() {
       const address = accounts?.[0];
       if (!address) return;
       setWalletAddress(address);
+      setIsMiniPay(Boolean(window.ethereum?.isMiniPay));
       const bal = await window.AecoData?.fetchTokenBalance?.(address);
       if (bal) {
         const num = parseInt(bal.replace(/,/g, ''), 10);
@@ -655,6 +674,7 @@ function App() {
         loading={loading}
         onConnect={handleConnect}
         isMiniPay={isMiniPay}
+        walletAddress={walletAddress}
       />
 
       <main className="max-w-[1440px] mx-auto px-6 lg:px-10 py-8 relative">
