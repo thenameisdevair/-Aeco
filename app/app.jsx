@@ -361,7 +361,11 @@ function PredictScreen({ accent, onPredict, subjects }) {
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted font-semibold mb-3">Suggested for you</div>
           <div className="space-y-2.5">
             {subjects.slice(0, 3).map((s, i) => {
-              const color = signalColor(s.signal);
+              if (!s) return null;
+              const signal     = s.signal     ?? 'NEUTRAL';
+              const score      = s.score      ?? 0;
+              const confidence = s.confidence ?? 0;
+              const color      = signalColor(signal);
               return (
                 <button
                   key={s.id}
@@ -369,16 +373,16 @@ function PredictScreen({ accent, onPredict, subjects }) {
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/[0.02] ring-1 ring-inset ring-white/[0.04] hover:bg-white/[0.04] hover:ring-white/[0.08] transition text-left"
                 >
                   <div className="relative shrink-0" style={{ width: 36, height: 36 }}>
-                    <ArcGauge value={s.score} color={color} size={36} stroke={3} delay={200 + i*80} />
+                    <ArcGauge value={score} color={color} size={36} stroke={3} delay={200 + i*80} />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="tnum text-[11px] font-bold text-white mt-0.5">{s.score}</span>
+                      <span className="tnum text-[11px] font-bold text-white mt-0.5">{score}</span>
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[12.5px] font-semibold text-white truncate">{s.name}</div>
-                    <div className="text-[10.5px] text-muted">{s.confidence}% confidence · {s.posts.toLocaleString()} posts</div>
+                    <div className="text-[12.5px] font-semibold text-white truncate">{s.name ?? 'Unknown'}</div>
+                    <div className="text-[10.5px] text-muted">{confidence}% confidence · {s.posts?.toLocaleString() ?? '0'} posts</div>
                   </div>
-                  <SignalBadge signal={s.signal} />
+                  <SignalBadge signal={signal} />
                 </button>
               );
             })}
