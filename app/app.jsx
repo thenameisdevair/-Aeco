@@ -463,10 +463,17 @@ function PredictScreen({ accent, onPredict, subjects }) {
 }
 
 /* ===================== Wallet screen ===================== */
-function WalletScreen({ accent, balance, isMiniPay }) {
+function WalletScreen({ accent, balance, isMiniPay, walletAddress }) {
+  const shortAddress = walletAddress
+    ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+    : null;
+
   return (
     <section>
-      <SectionHeader title="Wallet" subtitle="connect to claim rewards" />
+      <SectionHeader
+        title="Wallet"
+        subtitle={walletAddress ? `Connected · ${shortAddress}` : 'connect to claim rewards'}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6">
         <FadeIn delay={60} y={12} duration={520}
@@ -488,10 +495,15 @@ function WalletScreen({ accent, balance, isMiniPay }) {
               <div className="text-[13px] text-gray-400 mt-2">≈ <span className="text-gray-200 tnum">$128.40</span> USD · earned this week <span className="font-semibold" style={{ color: accent }}>+84</span></div>
             </div>
             <div className="text-right">
-              <div className="text-[10px] uppercase tracking-[0.16em] text-muted font-semibold">Network</div>
+              <div className="text-[10px] uppercase tracking-[0.16em] text-muted font-semibold">
+                {walletAddress ? 'Address' : 'Network'}
+              </div>
               <div className="flex items-center gap-1.5 mt-1 justify-end">
                 <span className="w-2 h-2 rounded-full bg-bull"></span>
-                <span className="text-[12.5px] font-semibold text-gray-200">Celo Mainnet</span>
+                {walletAddress
+                  ? <span className="font-mono text-[12px] text-gray-200">{shortAddress}</span>
+                  : <span className="text-[12.5px] font-semibold text-gray-200">Celo Mainnet</span>
+                }
               </div>
             </div>
           </div>
@@ -680,7 +692,7 @@ function App() {
         {activeTab === 'feed'    && <FeedScreen filter={filter} setFilter={setFilter} onPredict={handlePredict} tweaks={t} subjects={subjects} />}
         {activeTab === 'agent'   && <AgentScreen accent={t.accent} activity={activity} totalHeartbeats={totalHeartbeats} />}
         {activeTab === 'predict' && <PredictScreen accent={t.accent} onPredict={handlePredict} subjects={subjects} />}
-        {activeTab === 'wallet'  && <WalletScreen accent={t.accent} balance={balance} isMiniPay={isMiniPay} />}
+        {activeTab === 'wallet'  && <WalletScreen accent={t.accent} balance={balance} isMiniPay={isMiniPay} walletAddress={walletAddress} />}
       </main>
 
       <PredictionModal subject={modalSubject} onClose={() => setModalSubject(null)} />
