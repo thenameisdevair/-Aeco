@@ -42,12 +42,11 @@ SCORING RULES:
 - score is an integer from 0 to 100 representing how bullish "${name}"'s current public stance is for crypto and the Celo ecosystem.
 - 50 = neutral or unrelated content. Above 65 = bullish. Below 35 = bearish or hostile.
 - signal must be exactly one of: "bullish", "bearish", or "neutral" — consistent with the score.
-- confidence is 0–100 and reflects how much recent, usable content you found. More posts and news = higher confidence.
-- summary is plain English, maximum 20 words, no markdown. Focus on what the person said or did that drove the score.
+- confidence is 0–100 and reflects how much recent, usable content you found. More posts and news = higher confidence. If recent data is thin, set confidence below 30 and base the score on your general knowledge of their public stance.
+- summary is plain English, maximum 20 words, no markdown. Focus on what the person said or did that drove the score, or their known stance if no recent data is available.
 
 SKIP CONDITION:
-If "${name}" has not posted on X in the last 12 hours AND there is no news about them in the last 12 hours, respond with exactly:
-{"skip": true}
+Only respond with {"skip": true} if "${name}" has had absolutely zero public activity on X in the last 7 days AND there is no news about them whatsoever in the last 7 days. In all other cases — including when recent data is thin — return a full score using whatever data is available plus your general knowledge of their public stance on crypto.
 
 OTHERWISE respond with exactly this JSON and nothing else — no markdown, no code fences, no explanation, no extra fields:
 {"skip": false, "score": <integer 0-100>, "signal": "<bullish|bearish|neutral>", "confidence": <integer 0-100>, "summary": "<max 20 words>", "sourceType": "x_posts+news"}`;

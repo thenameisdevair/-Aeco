@@ -43,12 +43,11 @@ SCORING RULES:
 - score is an integer from 0 to 100 representing narrative momentum and sentiment.
 - 50 = neutral or low activity. Above 65 = strongly trending positively (bullish for crypto). Below 35 = negative or fading momentum (bearish).
 - signal must be exactly one of: "bullish", "bearish", or "neutral" — consistent with the score.
-- confidence is 0–100. More credible accounts discussing the topic = higher confidence. Only a few or low-quality sources = lower confidence.
-- summary is plain English, maximum 20 words, no markdown. Describe what is driving the narrative right now.
+- confidence is 0–100. More credible accounts discussing the topic = higher confidence. If recent activity is low or thin, set confidence below 30 and score close to 50 (neutral).
+- summary is plain English, maximum 20 words, no markdown. Describe what is driving the narrative, or note that activity is low if that is the case.
 
 SKIP CONDITION:
-If fewer than 5 credible accounts are actively discussing "${topic}" on X or in news in the last 6 hours, respond with exactly:
-{"skip": true}
+Only respond with {"skip": true} if searching for "${topic}" returns absolutely zero results on both X and in news. If any results exist — even sparse or low-quality ones — return a full response with confidence below 30 and a score near 50.
 
 OTHERWISE respond with exactly this JSON and nothing else — no markdown, no code fences, no explanation, no extra fields:
 {"skip": false, "score": <integer 0-100>, "signal": "<bullish|bearish|neutral>", "confidence": <integer 0-100>, "summary": "<max 20 words>", "sourceType": "x_posts+news"}`;

@@ -40,12 +40,12 @@ const AGENT_PRIVATE_KEY = (
 
 const transport = http(RPC_URL);
 
-const publicClient = createPublicClient({
+export const publicClient = createPublicClient({
   chain:     celoSepolia,
   transport,
 });
 
-const agentAccount = privateKeyToAccount(AGENT_PRIVATE_KEY);
+export const agentAccount = privateKeyToAccount(AGENT_PRIVATE_KEY);
 
 const walletClient = createWalletClient({
   account:   agentAccount,
@@ -271,10 +271,12 @@ export async function postSentiment(
   const signalUint8 = SIGNAL_TO_UINT8[signal] ?? 0;
 
   try {
+    const nonce = await publicClient.getTransactionCount({ address: agentAccount.address, blockTag: "pending" });
     const txHash = await walletClient.writeContract({
       address:      SENTIMENT_FEED_ADDRESS,
       abi:          sentimentFeedAbi,
       functionName: "postSentiment",
+      nonce,
       args: [
         BigInt(subjectId),
         score,
@@ -311,10 +313,12 @@ export async function recordHeartbeat(
   statusMessage:     string,
 ): Promise<boolean> {
   try {
+    const nonce = await publicClient.getTransactionCount({ address: agentAccount.address, blockTag: "pending" });
     const txHash = await walletClient.writeContract({
       address:      HEARTBEAT_ORACLE_ADDRESS,
       abi:          heartbeatOracleAbi,
       functionName: "recordHeartbeat",
+      nonce,
       args:         [BigInt(subjectsScanned), significantChange, statusMessage],
     });
 

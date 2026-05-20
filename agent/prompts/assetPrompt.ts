@@ -39,12 +39,41 @@ export interface AssetPriceData {
  * { "skip": true }
  * ```
  */
+/** Full asset names for well-known symbols, used to broaden X search terms. */
+const ASSET_FULL_NAMES: Record<string, string> = {
+  CELO: "Celo",
+  BTC:  "Bitcoin",
+  ETH:  "Ethereum",
+};
+
+/**
+ * Extra search terms appended for specific symbols where the ticker alone
+ * produces too little signal on X.
+ */
+const EXTRA_SEARCH_TERMS: Record<string, string[]> = {
+  CELO: ["Celo blockchain", "Celo network"],
+};
+
 export function buildAssetPrompt(symbol: string, priceData: AssetPriceData): string {
   const { price, change24h, volume24h, high24h, low24h } = priceData;
 
+  const fullName  = ASSET_FULL_NAMES[symbol];
+  const extraTerms = EXTRA_SEARCH_TERMS[symbol] ?? [];
+
+  // Build the X search term list: always include the ticker; add full name and
+  // any symbol-specific extras when available.
+  const xSearchTerms = [
+    `"${symbol}"`,
+    ...(fullName ? [`"${fullName}"`] : []),
+    ...extraTerms.map((t) => `"${t}"`),
+  ].join(", ");
+
+  // Human-readable label for the skip condition message.
+  const assetLabel = fullName ? `${symbol} (${fullName})` : symbol;
+
   return `You are a financial sentiment analyst for the Aeco AI oracle, running on the Celo blockchain. Your job is to produce a precise, data-driven sentiment score for a crypto asset based on social signals and price action.
 
-ASSET: ${symbol}
+ASSET: ${symbol}${fullName ? ` (${fullName})` : ""}
 
 CURRENT PRICE DATA (use this as context, not as the primary signal):
 - Price: $${price.toFixed(6)}
@@ -54,8 +83,8 @@ CURRENT PRICE DATA (use this as context, not as the primary signal):
 - 24h Low: $${low24h.toFixed(6)}
 
 RESEARCH INSTRUCTIONS:
-1. Search X (Twitter) for posts mentioning "${symbol}" published in the last 2 hours. Focus on posts from credible accounts (traders, analysts, founders, journalists). Note the tone: are people excited, fearful, neutral, or uncertain?
-2. Search for news articles and headlines about "${symbol}" published in the last 4 hours. Note whether coverage is positive, negative, or neutral.
+1. Search X (Twitter) for posts published in the last 2 hours using each of these search terms: ${xSearchTerms}. Combine all results. Focus on posts from credible accounts (traders, analysts, founders, journalists). Note the tone: are people excited, fearful, neutral, or uncertain?
+2. Search for news articles and headlines about ${assetLabel} published in the last 4 hours. Note whether coverage is positive, negative, or neutral.
 3. Combine what you find from X posts, news, and the price action above into a single sentiment score.
 
 SCORING RULES:
@@ -65,10 +94,9 @@ SCORING RULES:
 - confidence is 0–100 and reflects how much usable data you found. More posts and news = higher confidence. Sparse data = lower confidence.
 - summary is plain English, maximum 20 words, no jargon, no ticker symbols, no markdown.
 
-SKIP CONDITION:
-If you find fewer than 5 meaningful X posts or news items combined about "${symbol}" in the time windows above, respond with exactly:
-{"skip": true}
+RESPONSE RULE:
+Always return a full sentiment response using the price data provided plus any social data you find. Never return skip:true for assets that have price data.
 
-OTHERWISE respond with exactly this JSON and nothing else — no markdown, no code fences, no explanation, no extra fields:
+Respond with exactly this JSON and nothing else — no markdown, no code fences, no explanation, no extra fields:
 {"skip": false, "score": <integer 0-100>, "signal": "<bullish|bearish|neutral>", "confidence": <integer 0-100>, "summary": "<max 20 words>", "sourceType": "x_posts+news+price"}`;
 }

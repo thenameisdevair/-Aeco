@@ -193,6 +193,9 @@ export async function runCycle(): Promise<void> {
     } else {
       console.log(`[agent]   ✗ postSentiment failed for "${subject.name}".`);
     }
+
+    // Avoid Grok API rate limits between subjects.
+    await new Promise((resolve) => setTimeout(resolve, 3000));
   }
 
   // ── Step 3: Record heartbeat ──────────────────────────────────────────────
