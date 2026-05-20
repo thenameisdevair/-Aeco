@@ -1,4 +1,4 @@
-import { createPublicClient, http, formatUnits } from 'https://esm.sh/viem@2.50.4';
+import { createPublicClient, http, formatUnits, encodeFunctionData } from 'https://esm.sh/viem@2.50.4';
 
 // ─── Chain ────────────────────────────────────────────────────────────────────
 
@@ -274,6 +274,43 @@ export async function fetchTokenBalance(address) {
     console.error('[data-live] fetchTokenBalance failed:', err);
     return null;
   }
+}
+
+/**
+ * Sends a makePrediction transaction via window.ethereum.
+ * direction: 1 = higher, 2 = lower
+ */
+export async function makePrediction(subjectId, direction) {
+  if (!window.ethereum) throw new Error('No wallet detected');
+
+  const data = encodeFunctionData({
+    abi: [{
+      name: 'makePrediction',
+      type: 'function',
+      stateMutability: 'nonpayable',
+      inputs: [
+        { name: 'subjectId', type: 'uint256' },
+        { name: 'direction', type: 'uint8' }
+      ],
+      outputs: []
+    }],
+    functionName: 'makePrediction',
+    args: [BigInt(subjectId), direction]
+  });
+
+  const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+  const txHash = await window.ethereum.request({
+    method: 'eth_sendTransaction',
+    params: [{
+      from: accounts[0],
+      to: '0xD72AFE68Bfb0651A9AE6d641aBD66400a168EdeC',
+      data,
+      type: '0x0'
+    }]
+  });
+
+  return txHash;
 }
 
 /**

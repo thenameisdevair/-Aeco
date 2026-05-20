@@ -331,21 +331,23 @@ function LeaderRow({ row, index }) {
 
 // ---------- Prediction Modal ----------
 function PredictionModal({ subject, onClose }) {
-  const [choice, setChoice] = useState(null);
   const [mounted, setMounted] = useState(false);
+  const [txStatus, setTxStatus] = useState(null);
+  const [txHash, setTxHash] = useState(null);
 
   useEffect(() => {
     if (subject) {
-      setChoice(null);
-      // next frame
+      setTxStatus(null);
+      setTxHash(null);
       const t = requestAnimationFrame(() => setMounted(true));
       return () => cancelAnimationFrame(t);
     } else {
       setMounted(false);
+      setTxStatus(null);
+      setTxHash(null);
     }
   }, [subject]);
 
-  // Esc to close
   useEffect(() => {
     if (!subject) return;
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -356,7 +358,19 @@ function PredictionModal({ subject, onClose }) {
   if (!subject) return null;
   const color = signalColor(subject.signal);
 
-  return (
+  async function handleVote(direction) {
+    setTxStatus('pending');
+    try {
+      const hash = await window.AecoData.makePrediction(subject.id, direction);
+      setTxHash(hash);
+      setTxStatus('success');
+    } catch(err) {
+      console.error(err);
+      setTxStatus('error');
+    }
+  }
+
+  const modalShell = (children) => (
     <div
       className="fixed inset-0 z-50 modal-backdrop bg-black/70 flex items-end md:items-center justify-center p-0 md:p-6"
       style={{ opacity: mounted ? 1 : 0, transition: 'opacity 240ms ease' }}
@@ -371,96 +385,163 @@ function PredictionModal({ subject, onClose }) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="md:hidden flex justify-center pt-2.5 pb-1">
-          <div className="w-10 h-1 rounded-full bg-white/15"></div>
-        </div>
-
-        <div className="absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(90deg, transparent, ${color}, transparent)` }} />
-
-        <div className="px-6 pt-5 pb-6">
-          <div className="flex items-start justify-between gap-3 mb-1">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-muted font-semibold">Predict Sentiment</div>
-            <button onClick={onClose} className="text-muted hover:text-white w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/[0.05] transition">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-            </button>
-          </div>
-          <h3 className="text-2xl font-bold text-white tracking-tight mb-1">{subject.name}</h3>
-          <div className="font-mono text-[11px] text-muted mb-5 flex items-center gap-2">
-            <span>{subject.ticker}</span>
-            <span className="opacity-30">·</span>
-            <CategoryBadge category={subject.category} />
-          </div>
-
-          <div className="rounded-xl bg-ink/60 border border-white/[0.05] p-4 mb-5 flex items-center gap-4">
-            <div className="relative shrink-0" style={{ width: 76, height: 76 }}>
-              <ArcGauge value={subject.score} color={color} size={76} stroke={5} delay={120} />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="tnum text-[20px] font-bold text-white mt-1.5">{subject.score}</span>
-              </div>
-            </div>
-            <div className="flex-1">
-              <div className="text-[10px] uppercase tracking-[0.16em] text-muted font-semibold mb-1">Current Score</div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="tnum text-[22px] font-bold text-white">{subject.score}</span>
-                <SignalBadge signal={subject.signal} />
-              </div>
-              <div className="text-[11px] text-muted mt-1">Confidence {subject.confidence}% · {subject.posts.toLocaleString()} posts</div>
-            </div>
-          </div>
-
-          <p className="text-[14px] text-gray-200 leading-snug mb-4">
-            Will the sentiment score be <span className="font-semibold">higher</span> or <span className="font-semibold">lower</span> in 24 hours?
-          </p>
-
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            <button
-              onClick={() => setChoice('higher')}
-              className={`group relative rounded-xl border-2 py-4 px-3 transition-all
-                ${choice === 'higher' ? 'border-bull bg-bull/15' : 'border-bull/40 hover:border-bull hover:bg-bull/10'}`}
-            >
-              <div className="text-[10px] uppercase tracking-[0.18em] font-bold text-bull mb-1">Higher</div>
-              <div className="flex items-center justify-center gap-2 text-2xl font-bold text-bull">
-                <span>↑</span><span>{subject.score + 1}+</span>
-              </div>
-              <div className="text-[10px] text-gray-400 mt-1">More bullish in 24h</div>
-            </button>
-            <button
-              onClick={() => setChoice('lower')}
-              className={`group relative rounded-xl border-2 py-4 px-3 transition-all
-                ${choice === 'lower' ? 'border-bear bg-bear/15' : 'border-bear/40 hover:border-bear hover:bg-bear/10'}`}
-            >
-              <div className="text-[10px] uppercase tracking-[0.18em] font-bold text-bear mb-1">Lower</div>
-              <div className="flex items-center justify-center gap-2 text-2xl font-bold text-bear">
-                <span>↓</span><span>{subject.score - 1}-</span>
-              </div>
-              <div className="text-[10px] text-gray-400 mt-1">More bearish in 24h</div>
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg bg-white/[0.02] ring-1 ring-inset ring-white/[0.04] px-3.5 py-3 gap-3">
-            <div className="text-[11.5px] text-gray-400 leading-snug">
-              Correct predictions earn <span className="text-gold font-semibold">10 AEC</span>. Streak of 5+ earns <span className="text-gold font-semibold">double</span>.
-            </div>
-            <div className="text-right shrink-0">
-              <div className="text-[10px] uppercase tracking-[0.16em] text-muted">Your streak</div>
-              <div className="text-[16px] font-bold text-orange-300 flex items-center gap-1 justify-end">
-                <span>🔥</span><span className="tnum">3</span>
-              </div>
-            </div>
-          </div>
-
-          <button
-            disabled={!choice}
-            className={`mt-5 w-full rounded-lg py-3 text-[13px] font-semibold tracking-wide transition-all
-              ${choice
-                ? 'bg-gold text-ink hover:bg-goldd shadow-gold-glow'
-                : 'bg-white/[0.04] text-gray-500 cursor-not-allowed'}`}
-          >
-            {choice ? `Lock in ${choice.toUpperCase()} · 10 AEC` : 'Select a direction'}
-          </button>
-        </div>
+        {children}
       </div>
     </div>
+  );
+
+  if (txStatus === 'success') {
+    return modalShell(
+      <div className="px-6 pt-8 pb-8 flex flex-col items-center text-center">
+        <div className="w-14 h-14 rounded-full bg-bull/20 flex items-center justify-center mb-4">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+            <path d="M5 13l4 4L19 7" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <h3 className="text-xl font-bold text-white mb-1">Prediction Submitted</h3>
+        <p className="text-[13px] text-gray-400 mb-4">Your prediction has been recorded on-chain.</p>
+        {txHash && (
+          <div className="w-full rounded-lg bg-ink/60 border border-white/[0.05] px-4 py-3 mb-4 text-center">
+            <div className="text-[10px] uppercase tracking-[0.16em] text-muted font-semibold mb-1">Transaction</div>
+            <div className="font-mono text-[12px] text-gray-200 mb-2">
+              {txHash.slice(0, 10)}…{txHash.slice(-8)}
+            </div>
+            <a
+              href={`https://celoscan.io/tx/${txHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11.5px] font-semibold"
+              style={{ color: '#f5c842' }}
+            >
+              View on Celoscan →
+            </a>
+          </div>
+        )}
+        <button
+          onClick={onClose}
+          className="w-full rounded-lg py-3 text-[13px] font-semibold tracking-wide bg-white/[0.06] text-gray-200 hover:bg-white/[0.10] transition"
+        >
+          Close
+        </button>
+      </div>
+    );
+  }
+
+  const isPending = txStatus === 'pending';
+
+  return modalShell(
+    <>
+      <div className="md:hidden flex justify-center pt-2.5 pb-1">
+        <div className="w-10 h-1 rounded-full bg-white/15"></div>
+      </div>
+
+      <div className="absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(90deg, transparent, ${color}, transparent)` }} />
+
+      <div className="px-6 pt-5 pb-6">
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-muted font-semibold">Predict Sentiment</div>
+          <button onClick={onClose} className="text-muted hover:text-white w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/[0.05] transition">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          </button>
+        </div>
+        <h3 className="text-2xl font-bold text-white tracking-tight mb-1">{subject.name}</h3>
+        <div className="font-mono text-[11px] text-muted mb-5 flex items-center gap-2">
+          <span>{subject.ticker}</span>
+          <span className="opacity-30">·</span>
+          <CategoryBadge category={subject.category} />
+        </div>
+
+        <div className="rounded-xl bg-ink/60 border border-white/[0.05] p-4 mb-5 flex items-center gap-4">
+          <div className="relative shrink-0" style={{ width: 76, height: 76 }}>
+            <ArcGauge value={subject.score} color={color} size={76} stroke={5} delay={120} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="tnum text-[20px] font-bold text-white mt-1.5">{subject.score}</span>
+            </div>
+          </div>
+          <div className="flex-1">
+            <div className="text-[10px] uppercase tracking-[0.16em] text-muted font-semibold mb-1">Current Score</div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="tnum text-[22px] font-bold text-white">{subject.score}</span>
+              <SignalBadge signal={subject.signal} />
+            </div>
+            <div className="text-[11px] text-muted mt-1">Confidence {subject.confidence}% · {subject.posts.toLocaleString()} posts</div>
+          </div>
+        </div>
+
+        <p className="text-[14px] text-gray-200 leading-snug mb-4">
+          Will the sentiment score be <span className="font-semibold">higher</span> or <span className="font-semibold">lower</span> in 24 hours?
+        </p>
+
+        {txStatus === 'error' && (
+          <div className="mb-4 rounded-lg bg-bear/10 border border-bear/30 px-3.5 py-3 text-[12.5px] text-bear">
+            Transaction failed. Please try again.
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          <button
+            onClick={() => !isPending && handleVote(1)}
+            disabled={isPending}
+            className={`group relative rounded-xl border-2 py-4 px-3 transition-all
+              ${isPending ? 'border-bull/20 bg-bull/5 cursor-not-allowed opacity-60' : 'border-bull/40 hover:border-bull hover:bg-bull/10'}`}
+          >
+            {isPending ? (
+              <div className="flex items-center justify-center gap-2">
+                <svg className="animate-spin w-4 h-4 text-bull" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                <span className="text-[11px] text-bull font-semibold">Pending…</span>
+              </div>
+            ) : (
+              <>
+                <div className="text-[10px] uppercase tracking-[0.18em] font-bold text-bull mb-1">Higher</div>
+                <div className="flex items-center justify-center gap-2 text-2xl font-bold text-bull">
+                  <span>↑</span><span>{subject.score + 1}+</span>
+                </div>
+                <div className="text-[10px] text-gray-400 mt-1">More bullish in 24h</div>
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => !isPending && handleVote(2)}
+            disabled={isPending}
+            className={`group relative rounded-xl border-2 py-4 px-3 transition-all
+              ${isPending ? 'border-bear/20 bg-bear/5 cursor-not-allowed opacity-60' : 'border-bear/40 hover:border-bear hover:bg-bear/10'}`}
+          >
+            {isPending ? (
+              <div className="flex items-center justify-center gap-2">
+                <svg className="animate-spin w-4 h-4 text-bear" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                <span className="text-[11px] text-bear font-semibold">Pending…</span>
+              </div>
+            ) : (
+              <>
+                <div className="text-[10px] uppercase tracking-[0.18em] font-bold text-bear mb-1">Lower</div>
+                <div className="flex items-center justify-center gap-2 text-2xl font-bold text-bear">
+                  <span>↓</span><span>{subject.score - 1}-</span>
+                </div>
+                <div className="text-[10px] text-gray-400 mt-1">More bearish in 24h</div>
+              </>
+            )}
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between rounded-lg bg-white/[0.02] ring-1 ring-inset ring-white/[0.04] px-3.5 py-3 gap-3">
+          <div className="text-[11.5px] text-gray-400 leading-snug">
+            Correct predictions earn <span className="text-gold font-semibold">10 AEC</span>. Streak of 5+ earns <span className="text-gold font-semibold">double</span>.
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-[10px] uppercase tracking-[0.16em] text-muted">Your streak</div>
+            <div className="text-[16px] font-bold text-orange-300 flex items-center gap-1 justify-end">
+              <span>🔥</span><span className="tnum">3</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
