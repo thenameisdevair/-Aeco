@@ -14,17 +14,17 @@
  * Required environment variables: see writer.ts and grok.ts.
  */
 
-import { fetchPrices }          from "./prices.js";
-import { callGrok }             from "./grok.js";
-import { buildAssetPrompt }     from "./prompts/assetPrompt.js";
-import { buildPersonPrompt }    from "./prompts/personPrompt.js";
-import { buildNarrativePrompt } from "./prompts/narrativePrompt.js";
+import { fetchPrices }          from "./prices";
+import { callGrok }             from "./grok";
+import { buildAssetPrompt }     from "./prompts/assetPrompt";
+import { buildPersonPrompt }    from "./prompts/personPrompt";
+import { buildNarrativePrompt } from "./prompts/narrativePrompt";
 import {
   getLastRecord,
   shouldPost,
   postSentiment,
   recordHeartbeat,
-} from "./writer.js";
+} from "./writer";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants

@@ -18,7 +18,7 @@ import {
   type Address,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { celo } from "viem/chains";
+import { celoSepolia } from "viem/chains";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Environment
@@ -41,7 +41,7 @@ const AGENT_PRIVATE_KEY = (
 const transport = http(RPC_URL);
 
 const publicClient = createPublicClient({
-  chain:     celo,
+  chain:     celoSepolia,
   transport,
 });
 
@@ -49,7 +49,7 @@ const agentAccount = privateKeyToAccount(AGENT_PRIVATE_KEY);
 
 const walletClient = createWalletClient({
   account:   agentAccount,
-  chain:     celo,
+  chain:     celoSepolia,
   transport,
 });
 

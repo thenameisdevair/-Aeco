@@ -1,9 +1,16 @@
 /**
- * Thin client for the Grok API (xAI).
+ * Grok API client for the Aeco agent — uses the xAI Responses API (/v1/responses).
  *
- * Reads GROK_API_KEY from the environment. All functions are safe to call in a
- * long-running loop — errors are logged and swallowed; no call ever throws.
+ * Each call enables the x_search and web_search tools so Grok can pull live data
+ * from X posts and the web before producing its sentiment score.
+ *
+ * Reads GROK_API_KEY from the environment. Never throws — errors are logged and
+ * the function returns null so the agent loop continues uninterrupted.
  */
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
 
 /** Shape of a successful, parsed response from the oracle prompts. */
 export type GrokResponse = {
@@ -21,21 +28,37 @@ export type GrokResponse = {
   sourceType?: string;
 };
 
-/** Minimal shape of the xAI chat completions response we need. */
-interface XAIChatResponse {
-  choices: Array<{
-    message: {
-      content: string;
-    };
-  }>;
+/** Minimal shape of the xAI Responses API output we need to navigate. */
+interface XAIResponsesOutput {
+  type: string;
+  content?: Array<{ text?: string }>;
 }
 
-const GROK_API_URL = "https://api.x.ai/v1/chat/completions";
-const GROK_MODEL = "grok-3-mini";
+interface XAIResponsesBody {
+  output?: XAIResponsesOutput[];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+
+const GROK_API_URL = "https://api.x.ai/v1/responses";
+const GROK_MODEL   = "grok-3";
+
+/**
+ * System prompt prepended to every request. Keeps it short and instruction-only
+ * so the bulk of each model context window is used by the user prompt.
+ */
+const SYSTEM_PROMPT =
+  "You are a financial sentiment analyst for the Aeco oracle. " +
+  "Always respond with valid JSON only. No markdown, no explanation.";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Internal helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Strips markdown code fences from a string so raw JSON can be parsed.
- *
  * Handles both ` ```json\n...\n``` ` and bare ` ```\n...\n``` ` forms.
  *
  * @param text - Raw string from the model response.
@@ -93,10 +116,29 @@ function validateResponse(raw: unknown): GrokResponse | null {
 }
 
 /**
- * Sends a prompt to the Grok API and returns the parsed sentiment response.
+ * Walks the Responses API `output` array and returns the text content of the
+ * first item whose type is "message". Returns an empty string if not found.
  *
- * Uses model `grok-3-mini` with temperature 0.2 to keep outputs deterministic.
- * Markdown code fences in the model reply are stripped before JSON parsing.
+ * @param output - The `output` array from the xAI Responses API body.
+ * @returns The raw text string from the message item, or "".
+ */
+function extractMessageText(output: XAIResponsesOutput[]): string {
+  const messageItem = output.find((item) => item.type === "message");
+  return messageItem?.content?.[0]?.text ?? "";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Public API
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Sends a sentiment prompt to the Grok Responses API and returns the parsed result.
+ *
+ * The `prompt` parameter is used as the user message. A fixed system message
+ * instructs the model to return JSON only. Both x_search and web_search tools
+ * are enabled so Grok can search X posts and the web before responding.
+ *
+ * Markdown code fences in the reply are stripped before JSON parsing.
  *
  * @param prompt - A fully-formed prompt string (from one of the prompt builders).
  * @returns A typed GrokResponse on success, or null if the call fails or the
@@ -116,31 +158,39 @@ export async function callGrok(prompt: string): Promise<GrokResponse | null> {
     const response = await fetch(GROK_API_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
         "Content-Type":  "application/json",
+        "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model:       GROK_MODEL,
-        temperature: 0.2,
-        messages: [
-          { role: "user", content: prompt },
+        model: GROK_MODEL,
+        input: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user",   content: prompt         },
+        ],
+        tools: [
+          { type: "x_search"   },
+          { type: "web_search" },
         ],
       }),
     });
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => "(unreadable)");
-      console.error(
-        `[grok] API request failed — HTTP ${response.status}: ${errorBody}`
-      );
+      console.error(`[grok] API request failed — HTTP ${response.status}: ${errorBody}`);
       return null;
     }
 
-    const data = (await response.json()) as XAIChatResponse;
-    rawText = data?.choices?.[0]?.message?.content ?? "";
+    const data = (await response.json()) as XAIResponsesBody;
+
+    if (!Array.isArray(data?.output) || data.output.length === 0) {
+      console.error("[grok] API response missing or empty output array.");
+      return null;
+    }
+
+    rawText = extractMessageText(data.output);
 
     if (!rawText) {
-      console.error("[grok] API returned an empty content field.");
+      console.error("[grok] No message item found in output array.", data.output);
       return null;
     }
   } catch (err) {
@@ -148,25 +198,21 @@ export async function callGrok(prompt: string): Promise<GrokResponse | null> {
     return null;
   }
 
+  console.log("[grok debug] raw response:", rawText);
+
   const cleaned = stripCodeFences(rawText);
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(cleaned);
   } catch {
-    console.error(
-      "[grok] Failed to parse JSON from model response. Raw content:\n",
-      rawText
-    );
+    console.error("[grok] Failed to parse JSON from model response. Raw content:\n", rawText);
     return null;
   }
 
   const validated = validateResponse(parsed);
   if (!validated) {
-    console.error(
-      "[grok] Parsed JSON did not match expected GrokResponse shape:",
-      parsed
-    );
+    console.error("[grok] Parsed JSON did not match expected GrokResponse shape:", parsed);
     return null;
   }
 
