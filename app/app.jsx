@@ -688,7 +688,7 @@ function App() {
         walletAddress={walletAddress}
       />
 
-      <main className="max-w-[1440px] mx-auto px-6 lg:px-10 py-8 relative">
+      <main className="max-w-[1440px] mx-auto px-6 lg:px-10 py-8 pb-24 md:pb-8 relative">
         {activeTab === 'feed'    && <FeedScreen filter={filter} setFilter={setFilter} onPredict={handlePredict} tweaks={t} subjects={subjects} />}
         {activeTab === 'agent'   && <AgentScreen accent={t.accent} activity={activity} totalHeartbeats={totalHeartbeats} />}
         {activeTab === 'predict' && <PredictScreen accent={t.accent} onPredict={handlePredict} subjects={subjects} />}
@@ -749,6 +749,57 @@ function App() {
           />
         </TweakSection>
       </TweaksPanel>
+
+      {/* Bottom nav — mobile only */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-ink/95 backdrop-blur-md border-t border-border">
+        <div className="flex items-stretch h-16">
+          {[
+            { id: 'feed',    label: 'Feed',    icon: (
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <rect x="2" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+                <rect x="11" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+                <rect x="2" y="11" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+                <rect x="11" y="11" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+              </svg>
+            )},
+            { id: 'predict', label: 'Predict', icon: (
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M10 6v4l2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            )},
+            { id: 'agent',   label: 'Agent',   icon: (
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M3 13l4-4 3 3 4-5 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="10" cy="3.5" r="1.5" fill="currentColor"/>
+              </svg>
+            )},
+            { id: 'wallet',  label: 'Wallet',  icon: (
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <rect x="2" y="5" width="16" height="11" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M2 9h16" stroke="currentColor" strokeWidth="1.5"/>
+                <circle cx="14.5" cy="13" r="1" fill="currentColor"/>
+              </svg>
+            )},
+          ].map(tab => {
+            const isActive = tab.id === activeTab;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                className="flex-1 flex flex-col items-center justify-center gap-1 transition-colors"
+                style={{ color: isActive ? t.accent : '#6b7280' }}
+              >
+                {tab.icon}
+                <span className="text-[10px] font-semibold tracking-wide">{tab.label}</span>
+                {isActive && (
+                  <span className="absolute bottom-0 w-8 h-0.5 rounded-full" style={{ background: t.accent }} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }
