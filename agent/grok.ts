@@ -1,12 +1,14 @@
 /**
- * Grok API client for the Aeco agent — uses the xAI Responses API (/v1/responses).
+ * Grok API client for the Aeco agent — uses the OpenAI SDK pointed at xAI.
  *
- * Each call enables the x_search and web_search tools so Grok can pull live data
- * from X posts and the web before producing its sentiment score.
+ * Each call enables the x_search and web_search tools so Grok can pull live
+ * data from X posts and the web before producing its sentiment score.
  *
- * Reads GROK_API_KEY from the environment. Never throws — errors are logged and
- * the function returns null so the agent loop continues uninterrupted.
+ * Reads GROK_API_KEY from the environment. Never throws — errors are logged
+ * and the function returns null so the agent loop continues uninterrupted.
  */
+
+import OpenAI from "openai";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -28,22 +30,11 @@ export type GrokResponse = {
   sourceType?: string;
 };
 
-/** Minimal shape of the xAI Responses API output we need to navigate. */
-interface XAIResponsesOutput {
-  type: string;
-  content?: Array<{ text?: string }>;
-}
-
-interface XAIResponsesBody {
-  output?: XAIResponsesOutput[];
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GROK_API_URL = "https://api.x.ai/v1/responses";
-const GROK_MODEL   = "grok-3";
+const GROK_MODEL = "grok-3-mini";
 
 /**
  * System prompt prepended to every request. Keeps it short and instruction-only
@@ -60,9 +51,6 @@ const SYSTEM_PROMPT =
 /**
  * Strips markdown code fences from a string so raw JSON can be parsed.
  * Handles both ` ```json\n...\n``` ` and bare ` ```\n...\n``` ` forms.
- *
- * @param text - Raw string from the model response.
- * @returns The string with any surrounding code fences removed.
  */
 function stripCodeFences(text: string): string {
   return text
@@ -74,9 +62,6 @@ function stripCodeFences(text: string): string {
 /**
  * Validates that a parsed object matches the GrokResponse shape closely enough
  * to be used safely. Returns the typed value or null if validation fails.
- *
- * @param raw - The result of JSON.parse on the model output.
- * @returns A typed GrokResponse or null.
  */
 function validateResponse(raw: unknown): GrokResponse | null {
   if (typeof raw !== "object" || raw === null) return null;
@@ -115,18 +100,6 @@ function validateResponse(raw: unknown): GrokResponse | null {
   };
 }
 
-/**
- * Walks the Responses API `output` array and returns the text content of the
- * first item whose type is "message". Returns an empty string if not found.
- *
- * @param output - The `output` array from the xAI Responses API body.
- * @returns The raw text string from the message item, or "".
- */
-function extractMessageText(output: XAIResponsesOutput[]): string {
-  const messageItem = output.find((item) => item.type === "message");
-  return messageItem?.content?.[0]?.text ?? "";
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Public API
 // ─────────────────────────────────────────────────────────────────────────────
@@ -152,49 +125,34 @@ export async function callGrok(prompt: string): Promise<GrokResponse | null> {
     return null;
   }
 
+  const client = new OpenAI({
+    apiKey,
+    baseURL: "https://api.x.ai/v1",
+  });
+
   let rawText: string;
 
   try {
-    const response = await fetch(GROK_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type":  "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: GROK_MODEL,
-        input: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user",   content: prompt         },
-        ],
-        tools: [
-          { type: "x_search"   },
-          { type: "web_search" },
-        ],
-      }),
-    });
+    const response = await client.responses.create({
+      model: GROK_MODEL,
+      input: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user",   content: prompt         },
+      ],
+      tools: [
+        { type: "web_search" },
+        { type: "x_search"   },
+      ],
+    } as Parameters<typeof client.responses.create>[0]);
 
-    if (!response.ok) {
-      const errorBody = await response.text().catch(() => "(unreadable)");
-      console.error(`[grok] API request failed — HTTP ${response.status}: ${errorBody}`);
-      return null;
-    }
-
-    const data = (await response.json()) as XAIResponsesBody;
-
-    if (!Array.isArray(data?.output) || data.output.length === 0) {
-      console.error("[grok] API response missing or empty output array.");
-      return null;
-    }
-
-    rawText = extractMessageText(data.output);
+    rawText = response.output_text;
 
     if (!rawText) {
-      console.error("[grok] No message item found in output array.", data.output);
+      console.error("[grok] response.output_text is empty.");
       return null;
     }
   } catch (err) {
-    console.error("[grok] Network or fetch error:", err);
+    console.error("[grok] API call failed:", err);
     return null;
   }
 
