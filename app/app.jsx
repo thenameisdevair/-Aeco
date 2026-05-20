@@ -440,7 +440,7 @@ function PredictScreen({ accent, onPredict, subjects, walletAddress }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[12.5px] font-semibold text-white truncate">{s.name ?? 'Unknown'}</div>
-                    <div className="text-[10.5px] text-muted">{confidence}% confidence · {s.posts?.toLocaleString() ?? '0'} posts</div>
+                    <div className="text-[10.5px] text-muted">{score === 0 && confidence === 0 ? 'No data yet' : `${confidence}% confidence · ${s.posts?.toLocaleString() ?? '0'} posts`}</div>
                   </div>
                   <SignalBadge signal={signal} />
                 </button>
@@ -464,9 +464,21 @@ function PredictScreen({ accent, onPredict, subjects, walletAddress }) {
               <div className="w-12 text-right">Streak</div>
               <div className="w-12 text-right">Acc.</div>
             </div>
-            {window.LEADERBOARD.map((row, i) => (
-              <LeaderRow key={row.rank} row={row} index={i} />
-            ))}
+            {(() => {
+              const rows = window.LEADERBOARD.filter((r) => !r.you);
+              if (walletAddress) {
+                rows.push({
+                  rank: '--',
+                  addr: `${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}`,
+                  streak: userStats.currentStreak,
+                  accuracy: userStats.totalPredictions > 0
+                    ? Math.round((userStats.correctPredictions / userStats.totalPredictions) * 100)
+                    : 0,
+                  you: true,
+                });
+              }
+              return rows.map((row, i) => <LeaderRow key={row.rank} row={row} index={i} />);
+            })()}
           </div>
           <div className="px-5 py-3 border-t border-white/[0.04] flex items-center justify-between text-[10.5px]">
             <span className="text-muted">Rewards distributed in <span className="text-gray-200 font-mono">3d 14h</span></span>
