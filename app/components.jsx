@@ -169,9 +169,20 @@ function ConfidenceBar({ value, color = '#f5c842', delay = 0 }) {
 
 // ---------- Sentiment card ----------
 function SentimentCard({ subject, index, onPredict }) {
-  const color = signalColor(subject.signal);
-  const deltaColor = subject.delta > 0 ? '#22c55e' : subject.delta < 0 ? '#ef4444' : '#6b7280';
-  const deltaArrow = subject.delta > 0 ? '▲' : subject.delta < 0 ? '▼' : '·';
+  if (!subject) return null;
+
+  const signal     = subject.signal     ?? 'NEUTRAL';
+  const score      = subject.score      ?? 0;
+  const confidence = subject.confidence ?? 0;
+  const summary    = subject.summary    ?? '';
+  const updated    = subject.updated    ?? 'unknown';
+  const name       = subject.name       ?? 'Unknown';
+  const category   = subject.category   ?? 'ASSET';
+  const delta      = subject.delta      ?? 0;
+
+  const color      = signalColor(signal);
+  const deltaColor = delta > 0 ? '#22c55e' : delta < 0 ? '#ef4444' : '#6b7280';
+  const deltaArrow = delta > 0 ? '▲' : delta < 0 ? '▼' : '·';
 
   return (
     <FadeIn delay={60 + index * 60} y={16} duration={520} className="card-lift relative rounded-xl border border-border bg-panel shadow-card overflow-hidden">
@@ -182,39 +193,39 @@ function SentimentCard({ subject, index, onPredict }) {
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="text-[15px] font-semibold text-white truncate">{subject.name}</h3>
-              <CategoryBadge category={subject.category} />
+              <h3 className="text-[15px] font-semibold text-white truncate">{name}</h3>
+              <CategoryBadge category={category} />
             </div>
             <div className="font-mono text-[11px] text-muted truncate">{subject.ticker}</div>
           </div>
-          <SignalBadge signal={subject.signal} />
+          <SignalBadge signal={signal} />
         </div>
 
         {/* Middle: gauge + score */}
         <div className="flex items-center gap-4 mb-5">
           <div className="relative shrink-0" style={{ width: 132, height: 132 }}>
-            <ArcGauge value={subject.score} color={color} delay={200 + index * 60} />
+            <ArcGauge value={score} color={color} delay={200 + index * 60} />
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <div className="text-[10px] uppercase tracking-[0.18em] text-muted font-medium mt-3">Score</div>
               <div className="tnum text-[44px] leading-none font-bold text-white mt-0.5">
-                <CountUp to={subject.score} duration={1300} delay={200 + index * 60} />
+                <CountUp to={score} duration={1300} delay={200 + index * 60} />
               </div>
               <div className="tnum text-[11px] mt-1.5 font-semibold" style={{ color: deltaColor }}>
-                {deltaArrow} {Math.abs(subject.delta)} 24h
+                {deltaArrow} {Math.abs(delta)} 24h
               </div>
             </div>
           </div>
 
           <div className="flex-1 min-w-0 space-y-3.5">
-            <ConfidenceBar value={subject.confidence} color={color} delay={400 + index * 60} />
+            <ConfidenceBar value={confidence} color={color} delay={400 + index * 60} />
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-md bg-white/[0.02] ring-1 ring-inset ring-white/[0.04] px-2.5 py-1.5">
                 <div className="text-[9px] uppercase tracking-[0.16em] text-muted">Posts</div>
-                <div className="tnum text-[13px] text-gray-200 font-semibold">{subject.posts.toLocaleString()}</div>
+                <div className="tnum text-[13px] text-gray-200 font-semibold">{subject.posts?.toLocaleString() ?? '—'}</div>
               </div>
               <div className="rounded-md bg-white/[0.02] ring-1 ring-inset ring-white/[0.04] px-2.5 py-1.5">
                 <div className="text-[9px] uppercase tracking-[0.16em] text-muted">Updated</div>
-                <div className="text-[12px] text-gray-200 font-medium">{subject.updated}</div>
+                <div className="text-[12px] text-gray-200 font-medium">{updated}</div>
               </div>
             </div>
           </div>
@@ -222,14 +233,14 @@ function SentimentCard({ subject, index, onPredict }) {
 
         {/* Summary */}
         <p className="text-[12.5px] leading-relaxed text-gray-400 italic mb-4 min-h-[34px]">
-          "{subject.summary}"
+          "{summary}"
         </p>
 
         {/* Bottom row */}
         <div className="flex items-center justify-between pt-3 border-t border-white/[0.04]">
           <div className="flex items-center gap-2 text-[11px] text-muted">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-bull/70"></span>
-            <span>Last scan {subject.updated}</span>
+            <span>Last scan {updated}</span>
           </div>
           <button
             onClick={() => onPredict(subject)}
