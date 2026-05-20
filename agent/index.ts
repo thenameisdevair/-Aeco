@@ -217,6 +217,4 @@ export async function runCycle(): Promise<void> {
 // Entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Run immediately on startup, then every 30 minutes.
-runCycle();
-setInterval(runCycle, 30 * 60 * 1000);
+runCycle().then(() => process.exit(0)).catch(() => process.exit(1));
