@@ -463,7 +463,7 @@ function PredictScreen({ accent, onPredict, subjects }) {
 }
 
 /* ===================== Wallet screen ===================== */
-function WalletScreen({ accent, balance }) {
+function WalletScreen({ accent, balance, isMiniPay }) {
   return (
     <section>
       <SectionHeader title="Wallet" subtitle="connect to claim rewards" />
@@ -511,12 +511,14 @@ function WalletScreen({ accent, balance }) {
           </div>
 
           <div className="flex gap-3">
-            <button
-              className="px-5 py-2.5 rounded-md text-[13px] font-semibold text-ink hover:opacity-90 transition-opacity"
-              style={{ background: accent, boxShadow: `0 0 0 1px ${accent}40, 0 8px 30px -8px ${accent}66` }}
-            >
-              Connect Celo Wallet
-            </button>
+            {!isMiniPay && (
+              <button
+                className="px-5 py-2.5 rounded-md text-[13px] font-semibold text-ink hover:opacity-90 transition-opacity"
+                style={{ background: accent, boxShadow: `0 0 0 1px ${accent}40, 0 8px 30px -8px ${accent}66` }}
+              >
+                Connect Celo Wallet
+              </button>
+            )}
             <button className="px-5 py-2.5 rounded-md text-[13px] font-semibold text-gray-200 bg-white/[0.04] ring-1 ring-inset ring-white/[0.08] hover:bg-white/[0.07] transition">
               How to earn
             </button>
@@ -595,35 +597,32 @@ function App() {
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
-  // Auto-connect when running inside MiniPay.
-  // MiniPay injects window.ethereum slightly after page load, so we wait 1s.
-  // Uses viem createWalletClient with custom(window.ethereum) per Celo docs.
-  // MiniPay only supports legacy transactions — omit maxFeePerGas/maxPriorityFeePerGas
-  // and use type: 'legacy' when building any transaction object for predictions.
+  // Auto-connect when running inside MiniPay (provider is available immediately on page load).
+  // MiniPay only supports legacy transactions — use type: 'legacy' and omit
+  // maxFeePerGas/maxPriorityFeePerGas when building any transaction for predictions.
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!window.ethereum || !window.ethereum.isMiniPay) return;
-      setIsMiniPay(true);
-      import('https://esm.sh/viem@2.50.4').then(({ createWalletClient, custom }) => {
-        import('https://esm.sh/viem@2.50.4/chains').then(({ celo }) => {
-          const walletClient = createWalletClient({
-            chain: celo,
-            transport: custom(window.ethereum),
+    async function connectMiniPay() {
+      if (window.ethereum && window.ethereum.isMiniPay) {
+        setIsMiniPay(true);
+        try {
+          const accounts = await window.ethereum.request({
+            method: 'eth_requestAccounts',
+            params: [],
           });
-          walletClient.getAddresses().then(async (addresses) => {
-            const address = addresses[0];
-            if (!address) return;
-            setWalletAddress(address);
-            const bal = await window.AecoData?.fetchTokenBalance?.(address);
+          if (accounts && accounts[0]) {
+            setWalletAddress(accounts[0]);
+            const bal = await window.AecoData?.fetchTokenBalance?.(accounts[0]);
             if (bal) {
               const num = parseInt(bal.replace(/,/g, ''), 10);
               if (!isNaN(num)) setBalance(num);
             }
-          }).catch(console.error);
-        });
-      });
-    }, 1000);
-    return () => clearTimeout(timer);
+          }
+        } catch (err) {
+          console.error('MiniPay connect error:', err);
+        }
+      }
+    }
+    connectMiniPay();
   }, []);
 
   const handleConnect = async () => {
@@ -681,7 +680,7 @@ function App() {
         {activeTab === 'feed'    && <FeedScreen filter={filter} setFilter={setFilter} onPredict={handlePredict} tweaks={t} subjects={subjects} />}
         {activeTab === 'agent'   && <AgentScreen accent={t.accent} activity={activity} totalHeartbeats={totalHeartbeats} />}
         {activeTab === 'predict' && <PredictScreen accent={t.accent} onPredict={handlePredict} subjects={subjects} />}
-        {activeTab === 'wallet'  && <WalletScreen accent={t.accent} balance={balance} />}
+        {activeTab === 'wallet'  && <WalletScreen accent={t.accent} balance={balance} isMiniPay={isMiniPay} />}
       </main>
 
       <PredictionModal subject={modalSubject} onClose={() => setModalSubject(null)} />
