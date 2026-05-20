@@ -13,7 +13,7 @@ const celoMainnet = {
 
 const client = createPublicClient({
   chain: celoMainnet,
-  transport: http('https://ferno.celo.org'),
+  transport: http('https://celo-mainnet.g.alchemy.com/v2/vn-E1O50rnrL3DAj_9de2'),
 });
 
 // ─── Addresses ────────────────────────────────────────────────────────────────
