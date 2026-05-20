@@ -13,14 +13,14 @@ import "../src/PredictionGame.sol";
 
 /**
  * @title Deploy
- * @notice Foundry broadcast script that deploys all four Aeco contracts as UUPS proxies,
- *         wires roles between them, and seeds the SentimentFeed with initial subjects.
+ * @notice Foundry broadcast script that deploys all four Aeco contracts as UUPS proxies
+ *         and wires roles between them. Subject seeding is handled separately by Seed.s.sol.
  *
  * Required environment variables:
  *   PRIVATE_KEY_DEPLOYER  — private key of the deployer/owner wallet (hex, 0x-prefixed).
  *   AGENT_WALLET          — address of the pre-existing autonomous AI agent wallet.
  *
- * Run on Alfajores:
+ * Run on Celo Sepolia testnet:
  *   forge script script/Deploy.s.sol --rpc-url celo_testnet --broadcast --verify
  *
  * Run on mainnet:
@@ -45,7 +45,7 @@ contract Deploy is Script {
      *        3. SentimentFeed  — standalone; address needed by PredictionGame.
      *        4. PredictionGame — depends on SentimentFeed + AECToken addresses.
      *      After all proxies are live, MINTER_ROLE is granted to PredictionGame and
-     *      the agent wallet on AECToken, then SentimentFeed is seeded with subjects.
+     *      the agent wallet on AECToken. Run Seed.s.sol separately to register subjects.
      */
     function run() external {
         // ── Read environment ─────────────────────────────────────────────────
@@ -111,9 +111,6 @@ contract Deploy is Script {
         aecToken.grantRole(MINTER_ROLE, address(game));
         aecToken.grantRole(MINTER_ROLE, agentWallet);
 
-        // ── 6. Seed initial subjects ─────────────────────────────────────────
-        _seedSubjects(feed);
-
         vm.stopBroadcast();
 
         // ── 7. Log deployed addresses ────────────────────────────────────────
@@ -139,32 +136,5 @@ contract Deploy is Script {
         console.log("  PredictionGame impl:   ", address(gameImpl));
         console.log("");
         console.log("=======================================================");
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Subject seeding
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /**
-     * @notice Seeds the SentimentFeed with the initial set of tracked subjects.
-     * @dev Called within the broadcast window so each addSubject call is an
-     *      on-chain transaction signed by the deployer (who holds DEFAULT_ADMIN_ROLE).
-     *      Categories: 1 = crypto asset, 2 = person, 3 = narrative, 4 = premium.
-     * @param feed The deployed SentimentFeed proxy to seed.
-     */
-    function _seedSubjects(SentimentFeed feed) internal {
-        // ── Crypto assets ────────────────────────────────────────────────────
-        feed.addSubject("CELO",  1);
-        feed.addSubject("cUSD",  1);
-        feed.addSubject("cKES",  1);
-        feed.addSubject("BTC",   1);
-        feed.addSubject("ETH",   1);
-
-        // ── Public figures ───────────────────────────────────────────────────
-        feed.addSubject("Vitalik Buterin", 2);
-
-        // ── Narratives ───────────────────────────────────────────────────────
-        feed.addSubject("Stablecoin Regulation",  3);
-        feed.addSubject("Africa Crypto Adoption", 3);
     }
 }

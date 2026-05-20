@@ -206,7 +206,7 @@ contract PredictionGame is Initializable, AccessControlUpgradeable, UUPSUpgradea
         require(aecTokenAddress      != address(0), "PredictionGame: zero aecToken");
 
         __AccessControl_init();
-        __UUPSUpgradeable_init();
+        
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(UPGRADER_ROLE,      admin);

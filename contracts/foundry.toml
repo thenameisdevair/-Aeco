@@ -4,7 +4,7 @@ out = "out"
 libs = ["lib", "../node_modules"]
 remappings = [
     "@openzeppelin/contracts/=../node_modules/@openzeppelin/contracts/",
-    "@openzeppelin/contracts-upgradeable/=../node_modules/@openzeppelin/contracts-upgradeable/contracts/",
+    "@openzeppelin/contracts-upgradeable/=../node_modules/@openzeppelin/contracts-upgradeable/",
 ]
 
 [rpc_endpoints]

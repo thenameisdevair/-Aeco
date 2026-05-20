@@ -72,7 +72,7 @@ contract AECToken is Initializable, ERC20Upgradeable, AccessControlUpgradeable, 
     function initialize(address admin, address minter, address burner) external initializer {
         __ERC20_init("AIOracle", "AEC");
         __AccessControl_init();
-        __UUPSUpgradeable_init();
+        
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(UPGRADER_ROLE,      admin);

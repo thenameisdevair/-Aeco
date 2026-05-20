@@ -1,0 +1,32 @@
+{
+  "name": "-aeco",
+  "version": "1.0.0",
+  "description": "An Ai Oracle Built on Minipay with Grok API",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "agent": "npx ts-node agent/index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thenameisdevair/-Aeco.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/thenameisdevair/-Aeco/issues"
+  },
+  "homepage": "https://github.com/thenameisdevair/-Aeco#readme",
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.6.1",
+    "@openzeppelin/contracts-upgradeable": "^5.6.1",
+    "viem": "^2.50.4"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  }
+}

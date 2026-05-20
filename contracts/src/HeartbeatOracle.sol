@@ -107,7 +107,7 @@ contract HeartbeatOracle is Initializable, AccessControlUpgradeable, UUPSUpgrade
      */
     function initialize(address admin, address agent) external initializer {
         __AccessControl_init();
-        __UUPSUpgradeable_init();
+        
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(UPGRADER_ROLE,      admin);
