@@ -19,7 +19,7 @@ const ACCENT_OPTIONS = [
 ];
 
 /* ===================== Top nav with tabs ===================== */
-function TopNav({ balance, lastScan, accent, activeTab, onChangeTab, loading, onConnect }) {
+function TopNav({ balance, lastScan, accent, activeTab, onChangeTab, loading, onConnect, isMiniPay }) {
   const tabs = [
     { id: 'feed',    label: 'Feed' },
     { id: 'predict', label: 'Predict' },
@@ -93,16 +93,23 @@ function TopNav({ balance, lastScan, accent, activeTab, onChangeTab, loading, on
             <span className="tnum text-[13px] font-semibold text-white">{balance.toLocaleString()}</span>
             <span className="text-[11px] text-muted">AEC</span>
           </div>
-          <button
-            className="px-3.5 py-1.5 rounded-md text-ink text-[12.5px] font-bold tracking-wide transition-opacity active:opacity-80 hover:opacity-90"
-            onClick={onConnect}
-            style={{
-              background: accent,
-              boxShadow: `0 0 0 1px ${accent}40, 0 8px 30px -8px ${accent}66`,
-            }}
-          >
-            Connect Wallet
-          </button>
+          <div className="flex items-center gap-1.5">
+            {isMiniPay && (
+              <span className="px-2 py-1 rounded-md text-[10px] font-bold tracking-wide bg-bull/10 ring-1 ring-inset ring-bull/30 text-bull">
+                MiniPay
+              </span>
+            )}
+            <button
+              className="px-3.5 py-1.5 rounded-md text-ink text-[12.5px] font-bold tracking-wide transition-opacity active:opacity-80 hover:opacity-90"
+              onClick={onConnect}
+              style={{
+                background: accent,
+                boxShadow: `0 0 0 1px ${accent}40, 0 8px 30px -8px ${accent}66`,
+              }}
+            >
+              Connect Wallet
+            </button>
+          </div>
         </div>
       </div>
     </header>
@@ -552,6 +559,8 @@ function App() {
   const [agentStatus, setAgentStatus] = useState(null);
   const [balance, setBalance]         = useState(1284);
   const [loading, setLoading]         = useState(false);
+  const [walletAddress, setWalletAddress] = useState(null);
+  const isMiniPay = Boolean(window.ethereum?.isMiniPay);
 
   useEffect(() => {
     let cancelled = false;
@@ -582,15 +591,37 @@ function App() {
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
+  // Auto-connect when running inside MiniPay
+  useEffect(() => {
+    if (!window.ethereum?.isMiniPay) return;
+    window.ethereum.request({ method: 'eth_requestAccounts' })
+      .then(async (accounts) => {
+        const address = accounts?.[0];
+        if (!address) return;
+        setWalletAddress(address);
+        const bal = await window.AecoData?.fetchTokenBalance?.(address);
+        if (bal) {
+          const num = parseInt(bal.replace(/,/g, ''), 10);
+          if (!isNaN(num)) setBalance(num);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
   const handleConnect = async () => {
-    const api = window.AecoData;
-    if (!api) return;
-    const info = await api.detectWallet();
-    if (!info?.address) return;
-    const bal = await api.fetchTokenBalance(info.address);
-    if (bal) {
-      const num = parseInt(bal.replace(/,/g, ''), 10);
-      if (!isNaN(num)) setBalance(num);
+    if (!window.ethereum) return;
+    try {
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const address = accounts?.[0];
+      if (!address) return;
+      setWalletAddress(address);
+      const bal = await window.AecoData?.fetchTokenBalance?.(address);
+      if (bal) {
+        const num = parseInt(bal.replace(/,/g, ''), 10);
+        if (!isNaN(num)) setBalance(num);
+      }
+    } catch (err) {
+      console.error('[wallet] connect failed:', err);
     }
   };
 
@@ -623,6 +654,7 @@ function App() {
         onChangeTab={handleTabChange}
         loading={loading}
         onConnect={handleConnect}
+        isMiniPay={isMiniPay}
       />
 
       <main className="max-w-[1440px] mx-auto px-6 lg:px-10 py-8 relative">
