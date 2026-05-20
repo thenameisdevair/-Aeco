@@ -5,6 +5,7 @@
   ],
   "routes": [
     { "src": "/mobile", "dest": "/app/mobile.html" },
+    { "src": "/mobile.html", "dest": "/app/mobile.html" },
     { "src": "/", "dest": "/app/index.html" }
   ]
 }
