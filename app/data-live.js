@@ -300,6 +300,32 @@ export async function makePrediction(subjectId, direction) {
 
   const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
 
+  const CELO_CHAIN_ID = '0xa4ec';
+  const currentChain = await window.ethereum.request({ method: 'eth_chainId' });
+  if (currentChain !== CELO_CHAIN_ID) {
+    try {
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: CELO_CHAIN_ID }],
+      });
+    } catch (switchErr) {
+      if (switchErr.code === 4902) {
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: CELO_CHAIN_ID,
+            chainName: 'Celo Mainnet',
+            nativeCurrency: { name: 'CELO', symbol: 'CELO', decimals: 18 },
+            rpcUrls: ['https://ferno.celo.org'],
+            blockExplorerUrls: ['https://celoscan.io'],
+          }],
+        });
+      } else {
+        throw switchErr;
+      }
+    }
+  }
+
   const txHash = await window.ethereum.request({
     method: 'eth_sendTransaction',
     params: [{
