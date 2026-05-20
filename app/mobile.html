@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aeco · Mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: '#0a0a0f', ink2: '#101019', panel: '#13131c', panel2: '#191925',
+          border: '#23232f', border2: '#2b2b3a', muted: '#6b7280',
+          gold: '#f5c842', goldd: '#d6a921',
+          bull: '#22c55e', bullDim: '#15803d',
+          bear: '#ef4444', bearDim: '#991b1b',
+        },
+        fontFamily: { sans: ['Inter', 'system-ui'], mono: ['JetBrains Mono', 'ui-monospace'] },
+        boxShadow: {
+          'gold-glow': '0 0 0 1px rgba(245,200,66,0.25), 0 8px 30px -8px rgba(245,200,66,0.25)',
+          'card': '0 1px 0 0 rgba(255,255,255,0.03) inset, 0 20px 40px -20px rgba(0,0,0,0.5)',
+        }
+      }
+    }
+  }
+</script>
+<style>
+  html, body { background: #050507; color: #e5e7eb; }
+  body { font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; margin: 0; }
+  .bg-grid {
+    background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+  .gradient-underline {
+    background: linear-gradient(90deg, transparent 0%, rgba(245,200,66,0.6) 25%, rgba(245,200,66,1) 50%, rgba(245,200,66,0.6) 75%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 4s linear infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.55), 0 0 0 0 rgba(34,197,94,0.35); }
+    50% { box-shadow: 0 0 0 6px rgba(34,197,94,0), 0 0 0 12px rgba(34,197,94,0); }
+  }
+  .breathe { animation: breathe 2.2s ease-out infinite; }
+  @keyframes drift {
+    0%, 100% { transform: translate3d(0,0,0); }
+    50% { transform: translate3d(0,-20px,0); }
+  }
+  .drift { animation: drift 12s ease-in-out infinite; }
+  .scroll-thin::-webkit-scrollbar { width: 4px; }
+  .scroll-thin::-webkit-scrollbar-track { background: transparent; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: #2b2b3a; border-radius: 3px; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .modal-backdrop { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .no-select { user-select: none; -webkit-user-select: none; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .card-tap { transition: transform 180ms ease, background 180ms ease; }
+  .card-tap:active { transform: scale(0.985); }
+
+  /* Page wrapper centers iPhone in viewport with subtle backdrop */
+  .stage {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px 12px;
+    background:
+      radial-gradient(1200px 600px at 50% 0%, rgba(245,200,66,0.04), transparent 60%),
+      radial-gradient(900px 600px at 50% 100%, rgba(34,197,94,0.03), transparent 60%),
+      #050507;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div id="root"></div>
+  </div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="ios-frame.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="data.jsx"></script>
+  <script type="text/babel" src="components-mobile.jsx"></script>
+  <script type="text/babel" src="app-mobile.jsx"></script>
+</body>
+</html>
