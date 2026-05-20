@@ -221,7 +221,7 @@ function SentimentCard({ subject, index, onPredict }) {
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-md bg-white/[0.02] ring-1 ring-inset ring-white/[0.04] px-2.5 py-1.5">
                 <div className="text-[9px] uppercase tracking-[0.16em] text-muted">Posts</div>
-                <div className="tnum text-[13px] text-gray-200 font-semibold">{subject.posts?.toLocaleString() ?? '—'}</div>
+                <div className="tnum text-[13px] text-gray-200 font-semibold">{subject.posts?.toLocaleString() ?? '0'}</div>
               </div>
               <div className="rounded-md bg-white/[0.02] ring-1 ring-inset ring-white/[0.04] px-2.5 py-1.5">
                 <div className="text-[9px] uppercase tracking-[0.16em] text-muted">Updated</div>
@@ -331,6 +331,7 @@ function LeaderRow({ row, index }) {
 
 // ---------- Prediction Modal ----------
 function PredictionModal({ subject, onClose }) {
+  if (!subject) return null;
   const [mounted, setMounted] = useState(false);
   const [txStatus, setTxStatus] = useState(null);
   const [txHash, setTxHash] = useState(null);
