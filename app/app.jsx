@@ -19,7 +19,7 @@ const ACCENT_OPTIONS = [
 ];
 
 /* ===================== Top nav with tabs ===================== */
-function TopNav({ balance, lastScan, accent, activeTab, onChangeTab }) {
+function TopNav({ balance, lastScan, accent, activeTab, onChangeTab, loading, onConnect }) {
   const tabs = [
     { id: 'feed',    label: 'Feed' },
     { id: 'predict', label: 'Predict' },
@@ -80,7 +80,7 @@ function TopNav({ balance, lastScan, accent, activeTab, onChangeTab }) {
               <span className="absolute inset-0 rounded-full breathe"></span>
               <span className="relative w-2 h-2 rounded-full bg-bull"></span>
             </span>
-            <span className="text-[12px] text-bull font-semibold tracking-wide">Live</span>
+            <span className="text-[12px] text-bull font-semibold tracking-wide">{loading ? 'Syncing' : 'Live'}</span>
             <span className="w-px h-3 bg-bull/20"></span>
             <span className="text-[12px] text-gray-300 font-mono">{lastScan}</span>
           </div>
@@ -95,6 +95,7 @@ function TopNav({ balance, lastScan, accent, activeTab, onChangeTab }) {
           </div>
           <button
             className="px-3.5 py-1.5 rounded-md text-ink text-[12.5px] font-bold tracking-wide transition-opacity active:opacity-80 hover:opacity-90"
+            onClick={onConnect}
             style={{
               background: accent,
               boxShadow: `0 0 0 1px ${accent}40, 0 8px 30px -8px ${accent}66`,
@@ -109,13 +110,15 @@ function TopNav({ balance, lastScan, accent, activeTab, onChangeTab }) {
 }
 
 /* ===================== Market strip ===================== */
-function MarketStrip({ accent }) {
+function MarketStrip({ accent, subjects }) {
   const counts = useMemo(() => {
     const c = { BULLISH: 0, BEARISH: 0, NEUTRAL: 0 };
-    window.SUBJECTS.forEach(s => c[s.signal]++);
-    const avg = Math.round(window.SUBJECTS.reduce((a, s) => a + s.score, 0) / window.SUBJECTS.length);
+    subjects.forEach(s => c[s.signal]++);
+    const avg = subjects.length > 0
+      ? Math.round(subjects.reduce((a, s) => a + s.score, 0) / subjects.length)
+      : 0;
     return { ...c, avg };
-  }, []);
+  }, [subjects]);
 
   const items = [
     { label: 'Avg Score', value: counts.avg, sub: 'across 8 subjects', color: accent },
@@ -149,11 +152,11 @@ function MarketStrip({ accent }) {
 }
 
 /* ===================== Feed screen ===================== */
-function FeedScreen({ filter, setFilter, onPredict, tweaks }) {
+function FeedScreen({ filter, setFilter, onPredict, tweaks, subjects }) {
   const filtered = useMemo(() => {
-    if (filter === 'ALL') return window.SUBJECTS;
-    return window.SUBJECTS.filter(s => s.signal === filter);
-  }, [filter]);
+    if (filter === 'ALL') return subjects;
+    return subjects.filter(s => s.signal === filter);
+  }, [filter, subjects]);
 
   const gridGap = tweaks.density === 'compact' ? 'gap-3' : tweaks.density === 'spacious' ? 'gap-7' : 'gap-5';
 
@@ -186,7 +189,7 @@ function FeedScreen({ filter, setFilter, onPredict, tweaks }) {
         }
       />
 
-      {tweaks.showMarketStrip && <MarketStrip accent={tweaks.accent} />}
+      {tweaks.showMarketStrip && <MarketStrip accent={tweaks.accent} subjects={subjects} />}
 
       <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 ${gridGap}`}>
         {filtered.map((s, i) => (
@@ -203,7 +206,7 @@ function FeedScreen({ filter, setFilter, onPredict, tweaks }) {
 }
 
 /* ===================== Agent screen ===================== */
-function AgentScreen({ accent }) {
+function AgentScreen({ accent, activity, totalHeartbeats }) {
   return (
     <section>
       <SectionHeader title="Agent Activity" subtitle="indexer telemetry · streaming live" />
@@ -211,7 +214,7 @@ function AgentScreen({ accent }) {
       {/* Hero stats row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         {[
-          { label: 'Heartbeats', value: 52,    sub: 'today',       color: accent },
+          { label: 'Heartbeats', value: totalHeartbeats, sub: 'today', color: accent },
           { label: 'Posts',      value: 14028, sub: '24h indexed', color: '#22c55e' },
           { label: 'Subjects',   value: 8,     sub: 'tracked',     color: '#a78bfa' },
           { label: 'Uptime',     value: 99.7,  sub: '% this week', color: '#38bdf8', decimal: true },
@@ -252,7 +255,7 @@ function AgentScreen({ accent }) {
             </div>
           </div>
           <div className="px-3 py-2">
-            {window.ACTIVITY.map((item, i) => (
+            {activity.map((item, i) => (
               <ActivityRow key={item.id} item={item} index={i} />
             ))}
           </div>
@@ -295,7 +298,7 @@ function AgentScreen({ accent }) {
 }
 
 /* ===================== Predict screen ===================== */
-function PredictScreen({ accent, onPredict }) {
+function PredictScreen({ accent, onPredict, subjects }) {
   const myStreak = 3;
   const myRank = 27;
   const myAccuracy = 54;
@@ -342,7 +345,7 @@ function PredictScreen({ accent, onPredict }) {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => onPredict(window.SUBJECTS[0])}
+              onClick={() => subjects[0] && onPredict(subjects[0])}
               className="px-4 py-2.5 rounded-md text-[13px] font-semibold text-ink transition-opacity hover:opacity-90"
               style={{ background: accent }}
             >
@@ -357,7 +360,7 @@ function PredictScreen({ accent, onPredict }) {
         >
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted font-semibold mb-3">Suggested for you</div>
           <div className="space-y-2.5">
-            {window.SUBJECTS.slice(0, 3).map((s, i) => {
+            {subjects.slice(0, 3).map((s, i) => {
               const color = signalColor(s.signal);
               return (
                 <button
@@ -539,11 +542,62 @@ function App() {
   const [modalSubject, setModalSubject] = useState(() => t.openModalOnLaunch ? window.SUBJECTS[0] : null);
   const [filter, setFilter] = useState('ALL');
 
+  // Live data state — initialised from mock data so UI renders immediately
+  const [subjects, setSubjects]       = useState(window.SUBJECTS);
+  const [activity, setActivity]       = useState(window.ACTIVITY);
+  const [agentStatus, setAgentStatus] = useState(null);
+  const [balance, setBalance]         = useState(1284);
+  const [loading, setLoading]         = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const api = window.AecoData;
+        if (!api) return;
+        const [liveSubjects, liveStatus, liveActivity] = await Promise.all([
+          api.fetchAllSubjects(),
+          api.fetchAgentStatus(),
+          api.fetchHeartbeats(10),
+        ]);
+        if (cancelled) return;
+        if (liveSubjects?.length > 0) setSubjects(liveSubjects);
+        if (liveStatus)               setAgentStatus(liveStatus);
+        if (liveActivity?.length > 0) setActivity(liveActivity);
+      } catch {
+        // silently keep mock data on error
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    const interval = setInterval(load, 5 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
+  const handleConnect = async () => {
+    const api = window.AecoData;
+    if (!api) return;
+    const info = await api.detectWallet();
+    if (!info?.address) return;
+    const bal = await api.fetchTokenBalance(info.address);
+    if (bal) {
+      const num = parseInt(bal.replace(/,/g, ''), 10);
+      if (!isNaN(num)) setBalance(num);
+    }
+  };
+
   const handlePredict = (subject) => setModalSubject(subject);
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setModalSubject(null);
   };
+
+  const lastScan = agentStatus?.lastScan ?? '4 mins ago';
+  const totalHeartbeats = agentStatus?.totalHeartbeats ?? 52;
 
   return (
     <div className={`min-h-screen bg-ink relative ${t.showDottedBg ? 'bg-grid' : ''}`}>
@@ -558,18 +612,20 @@ function App() {
       )}
 
       <TopNav
-        balance={1284}
-        lastScan="4 mins ago"
+        balance={balance}
+        lastScan={lastScan}
         accent={t.accent}
         activeTab={activeTab}
         onChangeTab={handleTabChange}
+        loading={loading}
+        onConnect={handleConnect}
       />
 
       <main className="max-w-[1440px] mx-auto px-6 lg:px-10 py-8 relative">
-        {activeTab === 'feed'    && <FeedScreen filter={filter} setFilter={setFilter} onPredict={handlePredict} tweaks={t} />}
-        {activeTab === 'agent'   && <AgentScreen accent={t.accent} />}
-        {activeTab === 'predict' && <PredictScreen accent={t.accent} onPredict={handlePredict} />}
-        {activeTab === 'wallet'  && <WalletScreen accent={t.accent} balance={1284} />}
+        {activeTab === 'feed'    && <FeedScreen filter={filter} setFilter={setFilter} onPredict={handlePredict} tweaks={t} subjects={subjects} />}
+        {activeTab === 'agent'   && <AgentScreen accent={t.accent} activity={activity} totalHeartbeats={totalHeartbeats} />}
+        {activeTab === 'predict' && <PredictScreen accent={t.accent} onPredict={handlePredict} subjects={subjects} />}
+        {activeTab === 'wallet'  && <WalletScreen accent={t.accent} balance={balance} />}
       </main>
 
       <PredictionModal subject={modalSubject} onClose={() => setModalSubject(null)} />
