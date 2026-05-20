@@ -465,7 +465,7 @@ function PredictionModal({ subject, onClose }) {
               <span className="tnum text-[22px] font-bold text-white">{subject.score}</span>
               <SignalBadge signal={subject.signal} />
             </div>
-            <div className="text-[11px] text-muted mt-1">Confidence {subject.confidence}% · {subject.posts.toLocaleString()} posts</div>
+            <div className="text-[11px] text-muted mt-1">Confidence {subject.confidence}% · {subject.posts?.toLocaleString() ?? '0'} posts</div>
           </div>
         </div>
 
