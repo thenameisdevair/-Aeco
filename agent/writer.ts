@@ -54,6 +54,33 @@ const walletClient = createWalletClient({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Startup balance check
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Logs the agent wallet's CELO balance on startup. Prints a prominent warning
+ * when the balance is below 0.1 CELO so the operator knows to top up before
+ * transactions start failing with opaque "gas exceeds allowance" errors.
+ */
+async function checkAgentBalance(): Promise<void> {
+  try {
+    const balance = await publicClient.getBalance({ address: agentAccount.address });
+    const celoFloat = Number(balance) / 1e18;
+    const label = `[writer] Agent wallet ${agentAccount.address} balance: ${celoFloat.toFixed(6)} CELO`;
+
+    if (celoFloat < 0.1) {
+      console.warn(`⚠️  ${label} — LOW BALANCE. Fund this wallet with testnet CELO or transactions will fail.`);
+    } else {
+      console.log(label);
+    }
+  } catch (err) {
+    console.error("[writer] Could not fetch agent balance:", err);
+  }
+}
+
+checkAgentBalance();
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Signal helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
