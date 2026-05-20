@@ -339,6 +339,169 @@ export async function makePrediction(subjectId, direction) {
   return txHash;
 }
 
+// ─── PredictionGame ───────────────────────────────────────────────────────────
+
+const PREDICTION_GAME = '0xD72AFE68Bfb0651A9AE6d641aBD66400a168EdeC';
+
+const PREDICTION_GAME_ABI = [
+  {
+    name: 'getUserStats',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [{
+      name: '',
+      type: 'tuple',
+      components: [
+        { name: 'totalPredictions',   type: 'uint256' },
+        { name: 'correctPredictions', type: 'uint256' },
+        { name: 'currentStreak',      type: 'uint256' },
+        { name: 'bestStreak',         type: 'uint256' },
+      ],
+    }],
+  },
+  {
+    name: 'getUserPredictions',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'user',  type: 'address' },
+      { name: 'count', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'uint256[]' }],
+  },
+  {
+    name: 'predictionCount',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    name: 'getPrediction',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'id', type: 'uint256' }],
+    outputs: [{
+      name: '',
+      type: 'tuple',
+      components: [
+        { name: 'user',                 type: 'address' },
+        { name: 'subjectId',            type: 'uint256' },
+        { name: 'predictedDirection',   type: 'uint8'   },
+        { name: 'madeAtScore',          type: 'uint8'   },
+        { name: 'madeAtTimestamp',      type: 'uint256' },
+        { name: 'resolveAfterTimestamp', type: 'uint256' },
+        { name: 'resolved',             type: 'bool'    },
+        { name: 'correct',              type: 'bool'    },
+      ],
+    }],
+  },
+];
+
+function truncateAddress(addr) {
+  if (!addr || addr.length < 10) return addr;
+  return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+}
+
+/**
+ * Reads getUserStats(address) from PredictionGame.
+ * Returns { totalPredictions, correctPredictions, currentStreak, bestStreak } as Numbers,
+ * or null on error / missing address.
+ */
+export async function fetchUserStats(address) {
+  if (!address) return null;
+  try {
+    const stats = await client.readContract({
+      address: PREDICTION_GAME,
+      abi: PREDICTION_GAME_ABI,
+      functionName: 'getUserStats',
+      args: [address],
+    });
+    return {
+      totalPredictions:   Number(stats.totalPredictions),
+      correctPredictions: Number(stats.correctPredictions),
+      currentStreak:      Number(stats.currentStreak),
+      bestStreak:         Number(stats.bestStreak),
+    };
+  } catch (err) {
+    console.error('[data-live] fetchUserStats failed:', err);
+    return null;
+  }
+}
+
+/**
+ * Reads getUserPredictions(address, count) from PredictionGame.
+ * Returns an array of prediction IDs as Numbers, or [] on error.
+ */
+export async function fetchUserPredictions(address, count) {
+  if (!address) return [];
+  try {
+    const ids = await client.readContract({
+      address: PREDICTION_GAME,
+      abi: PREDICTION_GAME_ABI,
+      functionName: 'getUserPredictions',
+      args: [address, BigInt(count)],
+    });
+    return ids.map(Number);
+  } catch (err) {
+    console.error('[data-live] fetchUserPredictions failed:', err);
+    return [];
+  }
+}
+
+/**
+ * Reads the last `count` predictions from PredictionGame via predictionCount + getPrediction.
+ * Returns array of { id, user, subjectId, predictedDirection, madeAtScore, resolved, correct },
+ * or [] on error.
+ */
+export async function fetchRecentPredictions(count) {
+  try {
+    const total = await client.readContract({
+      address: PREDICTION_GAME,
+      abi: PREDICTION_GAME_ABI,
+      functionName: 'predictionCount',
+    });
+
+    const totalNum = Number(total);
+    if (totalNum === 0) return [];
+
+    const start = Math.max(1, totalNum - count + 1);
+    const ids = [];
+    for (let i = start; i <= totalNum; i++) ids.push(i);
+
+    const predictions = await Promise.all(
+      ids.map((id) =>
+        client.readContract({
+          address: PREDICTION_GAME,
+          abi: PREDICTION_GAME_ABI,
+          functionName: 'getPrediction',
+          args: [BigInt(id)],
+        }).catch(() => null)
+      )
+    );
+
+    return predictions
+      .map((p, i) => {
+        if (!p) return null;
+        return {
+          id:                 ids[i],
+          user:               truncateAddress(p.user),
+          subjectId:          Number(p.subjectId),
+          predictedDirection: Number(p.predictedDirection),
+          madeAtScore:        Number(p.madeAtScore),
+          resolved:           p.resolved,
+          correct:            p.correct,
+        };
+      })
+      .filter(Boolean)
+      .reverse();
+  } catch (err) {
+    console.error('[data-live] fetchRecentPredictions failed:', err);
+    return [];
+  }
+}
+
 /**
  * Checks for window.ethereum and whether it's MiniPay.
  * Reads accounts with eth_accounts (no popup).

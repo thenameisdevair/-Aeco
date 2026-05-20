@@ -309,10 +309,56 @@ function AgentScreen({ accent, activity, totalHeartbeats }) {
 }
 
 /* ===================== Predict screen ===================== */
-function PredictScreen({ accent, onPredict, subjects }) {
-  const myStreak = 3;
-  const myRank = 27;
-  const myAccuracy = 54;
+const STREAK_BONUS_THRESHOLD = 5;
+
+function PredictScreen({ accent, onPredict, subjects, walletAddress }) {
+  const [userStats, setUserStats] = useState({ totalPredictions: 0, correctPredictions: 0, currentStreak: 0, bestStreak: 0 });
+  const [recentPredictions, setRecentPredictions] = useState([]);
+
+  useEffect(() => {
+    if (!walletAddress) return;
+    window.AecoData.fetchUserStats(walletAddress).then((stats) => {
+      if (stats) setUserStats(stats);
+    });
+  }, [walletAddress]);
+
+  useEffect(() => {
+    window.AecoData.fetchRecentPredictions(5).then((preds) => {
+      if (preds && preds.length > 0) setRecentPredictions(preds);
+    });
+  }, []);
+
+  const myStreak   = userStats.currentStreak;
+  const myAccuracy = userStats.totalPredictions > 0
+    ? Math.round((userStats.correctPredictions / userStats.totalPredictions) * 100)
+    : 0;
+  const myRank = walletAddress ? '--' : '--';
+
+  const remaining = Math.max(0, STREAK_BONUS_THRESHOLD - myStreak);
+  const streakBonusText = remaining > 0
+    ? <>{remaining} more correct predictions for <span className="font-semibold" style={{ color: accent }}>2× rewards</span></>
+    : <span className="font-semibold" style={{ color: accent }}>Streak bonus active — earning 2× rewards! 🎉</span>;
+
+  const MOCK_WINS = [
+    { addr: '0x7a3f…b1c4', subject: 'ETH',           side: 'LOWER',  earn: 20, signal: '#ef4444' },
+    { addr: '0x2e91…ff08', subject: 'Africa Crypto', side: 'HIGHER', earn: 10, signal: '#22c55e' },
+    { addr: '0xc4d0…7e22', subject: 'Vitalik',       side: 'HIGHER', earn: 20, signal: '#22c55e' },
+    { addr: '0x1188…aab9', subject: 'BTC',           side: 'LOWER',  earn: 10, signal: '#ef4444' },
+    { addr: '0x5f6a…0c1d', subject: 'CELO',          side: 'HIGHER', earn: 10, signal: '#22c55e' },
+  ];
+
+  const winsRows = recentPredictions.length > 0
+    ? recentPredictions.map((p) => {
+        const subjectName = subjects.find((s) => s.id === p.subjectId)?.name ?? `#${p.subjectId}`;
+        const side        = p.predictedDirection === 1 ? 'HIGHER' : 'LOWER';
+        const signal      = p.predictedDirection === 1 ? '#22c55e' : '#ef4444';
+        let earn = null;
+        if (!p.resolved) earn = 'Pending';
+        else if (p.correct) earn = '+10';
+        else earn = '—';
+        return { addr: p.user, subject: subjectName, side, signal, earn, resolved: p.resolved, correct: p.correct };
+      })
+    : MOCK_WINS.map((w) => ({ ...w, earn: `+${w.earn}`, resolved: true, correct: true }));
 
   return (
     <section>
@@ -336,7 +382,7 @@ function PredictScreen({ accent, onPredict, subjects }) {
                 </span>
                 <span className="text-orange-300 text-[40px]">🔥</span>
               </div>
-              <div className="text-[13px] text-gray-400 mt-2">2 more correct predictions for <span className="font-semibold" style={{ color: accent }}>2× rewards</span></div>
+              <div className="text-[13px] text-gray-400 mt-2">{streakBonusText}</div>
             </div>
             <div className="text-right">
               <div className="text-[10px] uppercase tracking-[0.16em] text-muted font-semibold">Rank</div>
@@ -346,12 +392,15 @@ function PredictScreen({ accent, onPredict, subjects }) {
           </div>
 
           <div className="flex items-center gap-1.5 mb-5">
-            {[1,2,3,4,5].map(n => (
-              <div key={n} className="flex-1 h-2 rounded-full transition-all" style={{
-                background: n <= myStreak ? accent : 'rgba(255,255,255,0.08)',
-                boxShadow: n <= myStreak ? `0 0 10px ${accent}66` : 'none',
-              }}></div>
-            ))}
+            {[1,2,3,4,5].map(n => {
+              const lit = n <= Math.min(myStreak, 5);
+              return (
+                <div key={n} className="flex-1 h-2 rounded-full transition-all" style={{
+                  background: lit ? accent : 'rgba(255,255,255,0.08)',
+                  boxShadow: lit ? `0 0 10px ${accent}66` : 'none',
+                }}></div>
+              );
+            })}
           </div>
 
           <div className="flex items-center gap-3">
@@ -432,13 +481,7 @@ function PredictScreen({ accent, onPredict, subjects }) {
             <span className="text-[10px] uppercase tracking-[0.16em] text-muted font-mono">last 24h</span>
           </div>
           <div className="p-3 space-y-2">
-            {[
-              { addr: '0x7a3f…b1c4', subject: 'ETH',            side: 'LOWER',  earn: 20, signal: '#ef4444' },
-              { addr: '0x2e91…ff08', subject: 'Africa Crypto',  side: 'HIGHER', earn: 10, signal: '#22c55e' },
-              { addr: '0xc4d0…7e22', subject: 'Vitalik',        side: 'HIGHER', earn: 20, signal: '#22c55e' },
-              { addr: '0x1188…aab9', subject: 'BTC',            side: 'LOWER',  earn: 10, signal: '#ef4444' },
-              { addr: '0x5f6a…0c1d', subject: 'CELO',           side: 'HIGHER', earn: 10, signal: '#22c55e' },
-            ].map((w, i) => (
+            {winsRows.map((w, i) => (
               <FadeIn key={i} delay={200 + i * 60} y={6} duration={400}
                 className="rounded-lg px-3 py-2.5 flex items-center gap-3 bg-white/[0.02] ring-1 ring-inset ring-white/[0.04]"
               >
@@ -450,8 +493,16 @@ function PredictScreen({ accent, onPredict, subjects }) {
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="tnum text-[15px] font-bold" style={{ color: accent }}>+{w.earn}</div>
-                  <div className="text-[9px] uppercase tracking-[0.16em] text-muted font-semibold">AEC</div>
+                  {w.earn === 'Pending' ? (
+                    <div className="tnum text-[13px] font-semibold text-muted">Pending</div>
+                  ) : w.earn === '—' ? (
+                    <div className="tnum text-[15px] font-bold text-muted">—</div>
+                  ) : (
+                    <>
+                      <div className="tnum text-[15px] font-bold" style={{ color: accent }}>{w.earn}</div>
+                      <div className="text-[9px] uppercase tracking-[0.16em] text-muted font-semibold">AEC</div>
+                    </>
+                  )}
                 </div>
               </FadeIn>
             ))}
@@ -706,7 +757,7 @@ function App() {
       <main className="max-w-[1440px] mx-auto px-6 lg:px-10 py-8 pb-24 md:pb-8 relative">
         {activeTab === 'feed'    && <FeedScreen filter={filter} setFilter={setFilter} onPredict={handlePredict} tweaks={t} subjects={subjects} />}
         {activeTab === 'agent'   && <AgentScreen accent={t.accent} activity={activity} totalHeartbeats={totalHeartbeats} />}
-        {activeTab === 'predict' && <PredictScreen accent={t.accent} onPredict={handlePredict} subjects={subjects} />}
+        {activeTab === 'predict' && <PredictScreen accent={t.accent} onPredict={handlePredict} subjects={subjects} walletAddress={walletAddress} />}
         {activeTab === 'wallet'  && <WalletScreen accent={t.accent} balance={balance} isMiniPay={isMiniPay} walletAddress={walletAddress} onConnect={handleConnect} onDisconnect={handleDisconnect} />}
       </main>
 
