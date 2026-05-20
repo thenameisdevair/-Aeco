@@ -195,7 +195,7 @@ export async function runCycle(): Promise<void> {
     }
 
     // Avoid Grok API rate limits between subjects.
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 10000));
   }
 
   // ── Step 3: Record heartbeat ──────────────────────────────────────────────
