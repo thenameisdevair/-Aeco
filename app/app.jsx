@@ -258,7 +258,22 @@ function AgentScreen({ accent, activity, totalHeartbeats }) {
             </div>
             <div className="flex items-center gap-3">
               <span className="text-[10px] uppercase tracking-[0.16em] text-muted font-mono">LIVE · Celo Mainnet</span>
-              <button className="text-[10.5px] font-semibold hover:opacity-100 opacity-80 link-underline" style={{ color: accent }}>
+              <button
+                className="text-[10.5px] font-semibold hover:opacity-100 opacity-80 link-underline"
+                style={{ color: accent }}
+                onClick={() => {
+                  const rows = ['Time,Type,Event', ...activity.map(item =>
+                    `${item.time},${item.kind},"${item.text.replace(/"/g, '""')}"`
+                  )];
+                  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'aeco-agent-activity.csv';
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
                 Export CSV →
               </button>
             </div>
