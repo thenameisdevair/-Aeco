@@ -635,6 +635,99 @@ function WalletScreen({ accent, balance, isMiniPay, walletAddress, onConnect, on
   );
 }
 
+/* ===================== Landing screen ===================== */
+function LandingScreen({ accent, onConnect, onEnter, totalHeartbeats }) {
+  return (
+    <div className="min-h-screen bg-ink bg-grid flex flex-col items-center justify-center px-6 relative overflow-hidden">
+      {/* Ambient glow */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -top-40 -left-32 w-[520px] h-[520px] rounded-full drift"
+          style={{ background: `radial-gradient(circle, ${accent}10 0%, transparent 70%)` }}></div>
+        <div className="absolute top-1/3 -right-32 w-[480px] h-[480px] rounded-full drift"
+          style={{ background: 'radial-gradient(circle, rgba(34,197,94,0.05) 0%, transparent 70%)', animationDelay: '4s' }}></div>
+      </div>
+
+      <FadeIn y={20} duration={600} className="flex flex-col items-center text-center max-w-lg w-full relative z-10">
+        {/* Logo */}
+        <svg viewBox="0 0 680 340" width="160" height="80" className="mb-8">
+          <ellipse cx="340" cy="150" rx="110" ry="68" fill="none" stroke="#f5c842" strokeWidth="1.5"/>
+          <ellipse cx="340" cy="150" rx="109" ry="67" fill="none" stroke="#f5c842" strokeWidth="0.4" opacity="0.3"/>
+          <line x1="230" y1="150" x2="254" y2="150" stroke="#f5c842" strokeWidth="1" opacity="0.5"/>
+          <line x1="426" y1="150" x2="450" y2="150" stroke="#f5c842" strokeWidth="1" opacity="0.5"/>
+          <circle cx="340" cy="150" r="42" fill="#0d1117" stroke="#22c9c9" strokeWidth="1.2"/>
+          <circle cx="340" cy="150" r="36" fill="none" stroke="#f5c842" strokeWidth="0.5" opacity="0.4" strokeDasharray="4 3"/>
+          <path d="M 303 138 A 42 42 0 0 1 377 138" fill="none" stroke="#22c9c9" strokeWidth="1.8" strokeLinecap="round"/>
+          <circle cx="340" cy="150" r="22" fill="#0d1117" stroke="#22c9c9" strokeWidth="1"/>
+          <circle cx="340" cy="150" r="10" fill="#f5c842" opacity="0.6"/>
+          <circle cx="340" cy="150" r="5" fill="#f5c842"/>
+          <circle cx="334" cy="144" r="2.5" fill="#ffffff" opacity="0.7"/>
+          <text x="340" y="262" textAnchor="middle" fontFamily="Inter,sans-serif" fontSize="38" fontWeight="600" letterSpacing="14" fill="#f5c842">AECO</text>
+          <text x="340" y="290" textAnchor="middle" fontFamily="Inter,sans-serif" fontSize="11" letterSpacing="4" fill="#22c9c9" opacity="0.8">AI SENTIMENT ORACLE</text>
+        </svg>
+
+        <h1 className="text-[32px] md:text-[40px] font-bold text-white leading-tight tracking-tight mb-4">
+          AI Sentiment Oracle on Celo
+        </h1>
+        <p className="text-[15px] text-gray-400 leading-relaxed mb-8 max-w-md">
+          Live sentiment scores for crypto assets, people, and narratives — posted on-chain every 2 hours by an autonomous AI agent.
+        </p>
+
+        {/* Stat pills */}
+        <div className="flex flex-wrap items-center justify-center gap-2.5 mb-10">
+          {[
+            '8 Subjects tracked',
+            `${totalHeartbeats} Heartbeats posted`,
+            'Celo Mainnet',
+          ].map((label) => (
+            <span key={label} className="px-3 py-1.5 rounded-full text-[11.5px] font-semibold bg-white/[0.04] ring-1 ring-inset ring-white/[0.08] text-gray-300">
+              {label}
+            </span>
+          ))}
+        </div>
+
+        {/* Buttons */}
+        <div className="flex flex-col gap-3 w-full max-w-xs">
+          <button
+            onClick={onConnect}
+            className="w-full py-3 rounded-lg text-[14px] font-semibold text-ink transition-opacity hover:opacity-90"
+            style={{ background: accent, boxShadow: `0 0 0 1px ${accent}40, 0 8px 30px -8px ${accent}66` }}
+          >
+            Connect Wallet →
+          </button>
+          <button
+            onClick={onEnter}
+            className="w-full py-3 rounded-lg text-[14px] font-semibold text-gray-200 bg-white/[0.04] ring-1 ring-inset ring-white/[0.08] hover:bg-white/[0.07] transition"
+          >
+            View Dashboard
+          </button>
+        </div>
+
+        <p className="text-[11px] text-muted mt-5">Open in MiniPay for instant wallet connection</p>
+      </FadeIn>
+    </div>
+  );
+}
+
+/* ===================== Connect gate ===================== */
+function ConnectGate({ accent, onConnect, title, body }) {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <FadeIn y={12} duration={400} className="rounded-xl border border-border bg-panel shadow-card p-8 max-w-sm w-full text-center">
+        <div className="text-[32px] mb-4">🔒</div>
+        <h3 className="text-[16px] font-semibold text-white mb-2">{title}</h3>
+        <p className="text-[13px] text-gray-400 leading-relaxed mb-6">{body}</p>
+        <button
+          onClick={onConnect}
+          className="w-full py-2.5 rounded-md text-[13px] font-semibold text-ink transition-opacity hover:opacity-90"
+          style={{ background: accent, boxShadow: `0 0 0 1px ${accent}40` }}
+        >
+          Connect Wallet
+        </button>
+      </FadeIn>
+    </div>
+  );
+}
+
 /* ===================== Root ===================== */
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
@@ -650,6 +743,7 @@ function App() {
   const [loading, setLoading]         = useState(false);
   const [walletAddress, setWalletAddress] = useState(null);
   const [isMiniPay, setIsMiniPay] = useState(Boolean(window.ethereum?.isMiniPay));
+  const [showLanding, setShowLanding] = useState(!Boolean(window.ethereum?.isMiniPay));
 
   useEffect(() => {
     let cancelled = false;
@@ -694,6 +788,7 @@ function App() {
           });
           if (accounts && accounts[0]) {
             setWalletAddress(accounts[0]);
+            setShowLanding(false);
             const bal = await window.AecoData?.fetchTokenBalance?.(accounts[0]);
             if (bal) {
               const num = parseInt(bal.replace(/,/g, ''), 10);
@@ -715,6 +810,7 @@ function App() {
       const address = accounts?.[0];
       if (!address) return;
       setWalletAddress(address);
+      setShowLanding(false);
       setIsMiniPay(Boolean(window.ethereum?.isMiniPay));
       const bal = await window.AecoData?.fetchTokenBalance?.(address);
       if (bal) {
@@ -740,6 +836,17 @@ function App() {
 
   const lastScan = agentStatus?.lastScan ?? '4 mins ago';
   const totalHeartbeats = agentStatus?.totalHeartbeats ?? 52;
+
+  if (showLanding) {
+    return (
+      <LandingScreen
+        accent={t.accent}
+        totalHeartbeats={totalHeartbeats}
+        onEnter={() => setShowLanding(false)}
+        onConnect={async () => { await handleConnect(); setShowLanding(false); }}
+      />
+    );
+  }
 
   return (
     <div className={`min-h-screen bg-ink relative ${t.showDottedBg ? 'bg-grid' : ''}`}>
@@ -768,8 +875,14 @@ function App() {
       <main className="max-w-[1440px] mx-auto px-6 lg:px-10 py-8 pb-24 md:pb-8 relative">
         {activeTab === 'feed'    && <FeedScreen filter={filter} setFilter={setFilter} onPredict={handlePredict} tweaks={t} subjects={subjects} />}
         {activeTab === 'agent'   && <AgentScreen accent={t.accent} activity={activity} totalHeartbeats={totalHeartbeats} />}
-        {activeTab === 'predict' && <PredictScreen accent={t.accent} onPredict={handlePredict} subjects={subjects} walletAddress={walletAddress} />}
-        {activeTab === 'wallet'  && <WalletScreen accent={t.accent} balance={balance} isMiniPay={isMiniPay} walletAddress={walletAddress} onConnect={handleConnect} onDisconnect={handleDisconnect} />}
+        {activeTab === 'predict' && (walletAddress
+          ? <PredictScreen accent={t.accent} onPredict={handlePredict} subjects={subjects} walletAddress={walletAddress} />
+          : <ConnectGate accent={t.accent} onConnect={handleConnect} title="Connect wallet to predict" body="Make predictions on sentiment direction and earn AEC tokens for being correct." />
+        )}
+        {activeTab === 'wallet' && (walletAddress
+          ? <WalletScreen accent={t.accent} balance={balance} isMiniPay={isMiniPay} walletAddress={walletAddress} onConnect={handleConnect} onDisconnect={handleDisconnect} />
+          : <ConnectGate accent={t.accent} onConnect={handleConnect} title="Connect your wallet" body="View your AEC balance, prediction history, and manage your connection." />
+        )}
       </main>
 
       <PredictionModal subject={modalSubject} onClose={() => setModalSubject(null)} />
