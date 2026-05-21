@@ -225,10 +225,10 @@ function AgentScreen({ accent, activity, totalHeartbeats }) {
       {/* Hero stats row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         {[
-          { label: 'Heartbeats', value: totalHeartbeats, sub: 'today', color: accent },
-          { label: 'Posts',      value: 14028, sub: '24h indexed', color: '#22c55e' },
-          { label: 'Subjects',   value: 8,     sub: 'tracked',     color: '#a78bfa' },
-          { label: 'Uptime',     value: 99.7,  sub: '% this week', color: '#38bdf8', decimal: true },
+          { label: 'Heartbeats', value: totalHeartbeats, sub: 'all time',      color: accent,     text: false },
+          { label: 'Subjects',   value: 8,               sub: 'tracked',       color: '#a78bfa',  text: false },
+          { label: 'Cycle',      value: '2h',            sub: 'scan interval', color: '#38bdf8',  text: true  },
+          { label: 'Posts',      value: activity.length, sub: 'in feed',       color: '#22c55e',  text: false },
         ].map((it, i) => (
           <FadeIn key={it.label} delay={i * 60} y={10} duration={460}
             className="rounded-xl border border-border bg-panel shadow-card p-5 relative overflow-hidden"
@@ -237,9 +237,7 @@ function AgentScreen({ accent, activity, totalHeartbeats }) {
             <div className="text-[10px] uppercase tracking-[0.18em] text-muted font-semibold mb-2">{it.label}</div>
             <div className="flex items-baseline gap-1.5">
               <span className="tnum text-[32px] font-bold text-white leading-none">
-                {it.decimal
-                  ? <>{Math.floor(it.value)}.<CountUp to={Math.round((it.value % 1) * 10)} duration={900} delay={200 + i*60} /></>
-                  : <CountUp to={it.value} duration={1300} delay={200 + i*60} />}
+                {it.text ? it.value : <CountUp to={it.value} duration={1300} delay={200 + i*60} />}
               </span>
               <span className="text-[12px] text-muted">{it.sub}</span>
             </div>
@@ -259,7 +257,7 @@ function AgentScreen({ accent, activity, totalHeartbeats }) {
               <h3 className="text-[14px] font-semibold text-white tracking-tight">Event Log</h3>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-[10px] uppercase tracking-[0.16em] text-muted font-mono">LIVE · Block #28,401,902</span>
+              <span className="text-[10px] uppercase tracking-[0.16em] text-muted font-mono">LIVE · Celo Mainnet</span>
               <button className="text-[10.5px] font-semibold hover:opacity-100 opacity-80 link-underline" style={{ color: accent }}>
                 Export CSV →
               </button>
@@ -271,7 +269,7 @@ function AgentScreen({ accent, activity, totalHeartbeats }) {
             ))}
           </div>
           <div className="px-5 py-3 border-t border-white/[0.04] flex items-center justify-between text-[10.5px]">
-            <span className="text-muted font-mono">Next heartbeat in <span className="text-gray-200">1m 14s</span></span>
+            <span className="text-muted font-mono">Runs every 2 hours via GitHub Actions</span>
             <button className="font-semibold" style={{ color: accent }}>Load older events →</button>
           </div>
         </div>
@@ -285,19 +283,20 @@ function AgentScreen({ accent, activity, totalHeartbeats }) {
             <div className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: accent }}>Methodology</div>
             <h4 className="text-[15px] font-semibold text-white tracking-tight mb-2">How scoring works</h4>
             <p className="text-[12.5px] text-gray-300 leading-relaxed mb-3">
-              The Aeco agent indexes posts across Farcaster, X, and Lens every 5 minutes. Each subject is scored 0–100 by an LLM ensemble weighted by post recency, author reputation, and engagement.
+              The Aeco agent runs every 2 hours on GitHub Actions. It queries Grok's live X search and web search APIs to analyze sentiment for each tracked subject, then posts scored results on-chain to Celo Mainnet.
             </p>
             <div className="space-y-1.5 text-[11.5px] text-gray-400">
-              <div className="flex items-center justify-between"><span>Scan interval</span><span className="font-mono text-gray-200">5m</span></div>
-              <div className="flex items-center justify-between"><span>LLM ensemble</span><span className="font-mono text-gray-200">3 models</span></div>
-              <div className="flex items-center justify-between"><span>Confidence floor</span><span className="font-mono text-gray-200">15%</span></div>
+              <div className="flex items-center justify-between"><span>Scan interval</span><span className="font-mono text-gray-200">2h</span></div>
+              <div className="flex items-center justify-between"><span>AI model</span><span className="font-mono text-gray-200">Grok (xAI)</span></div>
+              <div className="flex items-center justify-between"><span>On-chain write</span><span className="font-mono text-gray-200">every cycle</span></div>
+              <div className="flex items-center justify-between"><span>Resolution window</span><span className="font-mono text-gray-200">24h</span></div>
             </div>
           </div>
 
           <div className="rounded-xl border border-border bg-panel p-5">
             <div className="text-[10px] uppercase tracking-[0.16em] text-muted font-semibold mb-2">Sources</div>
             <div className="flex flex-wrap gap-1.5">
-              {['Farcaster', 'X / Twitter', 'Lens', 'Mirror', 'CoinGecko', 'Dune'].map(s => (
+              {['X / Twitter', 'Web Search', 'Grok AI', 'CryptoCompare', 'Celo Mainnet'].map(s => (
                 <span key={s} className="text-[10.5px] px-2 py-0.5 rounded-md bg-white/[0.04] ring-1 ring-inset ring-white/[0.06] text-gray-300">{s}</span>
               ))}
             </div>
