@@ -503,6 +503,40 @@ export async function fetchRecentPredictions(count) {
 }
 
 /**
+ * Sends a resolvePrediction transaction via window.ethereum.
+ * Permissionless — anyone can call after resolveAfterTimestamp has passed.
+ */
+export async function resolvePrediction(predictionId) {
+  if (!window.ethereum) throw new Error('No wallet detected');
+
+  const data = encodeFunctionData({
+    abi: [{
+      name: 'resolvePrediction',
+      type: 'function',
+      stateMutability: 'nonpayable',
+      inputs:  [{ name: 'predictionId', type: 'uint256' }],
+      outputs: [],
+    }],
+    functionName: 'resolvePrediction',
+    args: [BigInt(predictionId)],
+  });
+
+  const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+  const txHash = await window.ethereum.request({
+    method: 'eth_sendTransaction',
+    params: [{
+      from: accounts[0],
+      to:   '0xD72AFE68Bfb0651A9AE6d641aBD66400a168EdeC',
+      data,
+      type: '0x0',
+    }],
+  });
+
+  return txHash;
+}
+
+/**
  * Checks for window.ethereum and whether it's MiniPay.
  * Reads accounts with eth_accounts (no popup).
  * Returns { provider, isMiniPay, address } — address is null when no account is connected.

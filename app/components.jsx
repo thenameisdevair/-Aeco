@@ -418,6 +418,9 @@ function PredictionModal({ subject, onClose }) {
             </a>
           </div>
         )}
+        <p className="text-[11.5px] text-muted mb-4">
+          Come back in 24h — the agent will auto-resolve your prediction and mint your AEC if correct.
+        </p>
         <button
           onClick={onClose}
           className="w-full rounded-lg py-3 text-[13px] font-semibold tracking-wide bg-white/[0.06] text-gray-200 hover:bg-white/[0.10] transition"

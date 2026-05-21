@@ -24,6 +24,7 @@ import {
   shouldPost,
   postSentiment,
   recordHeartbeat,
+  resolveExpiredPredictions,
 } from "./writer";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -208,6 +209,9 @@ export async function runCycle(): Promise<void> {
   console.log(`[agent] Status: ${statusMessage}`);
 
   await recordHeartbeat(subjectsScanned, anyPosted, statusMessage);
+
+  console.log(`[agent] Checking for expired predictions to resolve...`);
+  await resolveExpiredPredictions();
 
   console.log(`\n[agent] Cycle complete in ${cycleDurationMs}ms.`);
   console.log(`${"─".repeat(60)}\n`);

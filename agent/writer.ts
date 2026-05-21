@@ -162,6 +162,45 @@ const heartbeatOracleAbi = [
   },
 ] as const;
 
+const PREDICTION_GAME_ADDRESS = "0xD72AFE68Bfb0651A9AE6d641aBD66400a168EdeC" as Address;
+
+const predictionGameAbi = [
+  {
+    name:            "predictionCount",
+    type:            "function",
+    stateMutability: "view",
+    inputs:          [],
+    outputs:         [{ name: "", type: "uint256" }],
+  },
+  {
+    name:            "getPrediction",
+    type:            "function",
+    stateMutability: "view",
+    inputs:          [{ name: "id", type: "uint256" }],
+    outputs: [{
+      name: "",
+      type: "tuple",
+      components: [
+        { name: "user",                  type: "address" },
+        { name: "subjectId",             type: "uint256" },
+        { name: "predictedDirection",    type: "uint8"   },
+        { name: "madeAtScore",           type: "uint8"   },
+        { name: "madeAtTimestamp",       type: "uint256" },
+        { name: "resolveAfterTimestamp", type: "uint256" },
+        { name: "resolved",              type: "bool"    },
+        { name: "correct",               type: "bool"    },
+      ],
+    }],
+  },
+  {
+    name:            "resolvePrediction",
+    type:            "function",
+    stateMutability: "nonpayable",
+    inputs:          [{ name: "predictionId", type: "uint256" }],
+    outputs:         [],
+  },
+] as const;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
@@ -323,6 +362,52 @@ export async function postSentiment(
   } catch (err) {
     console.error(`[writer] postSentiment failed for subject ${subjectId}:`, err);
     return false;
+  }
+}
+
+/**
+ * Scans the last 20 predictions on PredictionGame and resolves any that are
+ * past their resolveAfterTimestamp and not yet resolved.
+ * Errors per prediction are caught silently so one failure doesn't abort the rest.
+ */
+export async function resolveExpiredPredictions(): Promise<void> {
+  const total = await publicClient.readContract({
+    address:      PREDICTION_GAME_ADDRESS,
+    abi:          predictionGameAbi,
+    functionName: "predictionCount",
+  });
+
+  const totalNum = Number(total);
+  if (totalNum === 0) return;
+
+  const nowSeconds = BigInt(Math.floor(Date.now() / 1000));
+  const start = Math.max(1, totalNum - 19);
+
+  for (let id = totalNum; id >= start; id--) {
+    try {
+      const pred = await publicClient.readContract({
+        address:      PREDICTION_GAME_ADDRESS,
+        abi:          predictionGameAbi,
+        functionName: "getPrediction",
+        args:         [BigInt(id)],
+      });
+
+      if (pred.resolved) continue;
+      if (pred.resolveAfterTimestamp > nowSeconds) continue;
+
+      const nonce = await publicClient.getTransactionCount({ address: agentAccount.address, blockTag: "pending" });
+      const txHash = await walletClient.writeContract({
+        address:      PREDICTION_GAME_ADDRESS,
+        abi:          predictionGameAbi,
+        functionName: "resolvePrediction",
+        nonce,
+        args:         [BigInt(id)],
+      });
+
+      console.log(`[writer] resolvePrediction #${id} | tx ${txHash}`);
+    } catch (err) {
+      console.error(`[writer] resolvePrediction #${id} failed:`, err);
+    }
   }
 }
 
