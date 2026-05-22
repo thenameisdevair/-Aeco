@@ -1,0 +1,193 @@
+/**
+ * Aeco oracle API server.
+ *
+ * Serves live sentiment data from Celo Mainnet contracts.
+ * Paid routes are gated with x402 micropayments in cUSD via the public facilitator.
+ *
+ * Free routes:  GET /health, GET /heartbeat, GET /sentiment/:subject (IDs 1–3)
+ * Paid routes:  GET /sentiment/all ($0.05), GET /sentiment/:subject IDs 4–8 ($0.01)
+ *
+ * Required env: PORT (optional, default 3000)
+ */
+
+import "dotenv/config";
+import express, {
+  type Request,
+  type Response,
+  type NextFunction,
+  type RequestHandler,
+} from "express";
+import cors from "cors";
+import { paymentMiddleware, x402ResourceServer } from "@x402/express";
+import { ExactEvmScheme } from "@x402/evm/exact/server";
+import { HTTPFacilitatorClient } from "@x402/core/server";
+import { getSentiment, getAllSentiment, getHeartbeats } from "./lib/contracts";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// x402 setup
+// ─────────────────────────────────────────────────────────────────────────────
+
+const AGENT_WALLET = "0x9600e1E61c5a412132f683b4DF591669Be7b1EE2" as const;
+
+const facilitatorClient = new HTTPFacilitatorClient({
+  url: "https://facilitator.x402.org",
+});
+
+const resourceServer = new x402ResourceServer(facilitatorClient)
+  .register("eip155:42220", new ExactEvmScheme());
+
+const PAID_ACCEPTS = {
+  scheme:  "exact",
+  network: "eip155:42220",
+  payTo:   AGENT_WALLET,
+} as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Subject name → ID lookup
+// ─────────────────────────────────────────────────────────────────────────────
+
+const NAME_TO_ID: Record<string, number> = {
+  celo:       1,
+  cusd:       2,
+  ckes:       3,
+  btc:        4,
+  eth:        5,
+  vitalik:    6,
+  stablecoin: 7,
+  africa:     8,
+};
+
+/** Resolves a route :subject param (number string or name) to an on-chain ID. */
+function resolveSubjectId(param: string): number | null {
+  const asNum = parseInt(param, 10);
+  if (!isNaN(asNum) && asNum >= 1 && asNum <= 8) return asNum;
+
+  const fromName = NAME_TO_ID[param.toLowerCase()];
+  return fromName ?? null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// App
+// ─────────────────────────────────────────────────────────────────────────────
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+app.use(
+  paymentMiddleware(
+    {
+      "GET /sentiment/all": {
+        accepts:     { ...PAID_ACCEPTS, price: "$0.05" },
+        description: "All 8 sentiment subjects",
+      },
+      "GET /sentiment/4": {
+        accepts:     { ...PAID_ACCEPTS, price: "$0.01" },
+        description: "BTC sentiment",
+      },
+      "GET /sentiment/5": {
+        accepts:     { ...PAID_ACCEPTS, price: "$0.01" },
+        description: "ETH sentiment",
+      },
+      "GET /sentiment/6": {
+        accepts:     { ...PAID_ACCEPTS, price: "$0.01" },
+        description: "Vitalik Buterin sentiment",
+      },
+      "GET /sentiment/7": {
+        accepts:     { ...PAID_ACCEPTS, price: "$0.01" },
+        description: "Stablecoin Regulation sentiment",
+      },
+      "GET /sentiment/8": {
+        accepts:     { ...PAID_ACCEPTS, price: "$0.01" },
+        description: "Africa Crypto Adoption sentiment",
+      },
+    },
+    resourceServer,
+    undefined,
+    undefined,
+    false,
+  )
+);
+
+app.use((req, _res, next) => {
+  console.log(`[api] ${req.method} ${req.path}`);
+  next();
+});
+
+// ── GET /health ───────────────────────────────────────────────────────────────
+
+app.get("/health", (_req: Request, res: Response) => {
+  res.json({
+    status:    "ok",
+    agent:     "Aeco Sentiment Oracle",
+    agentId:   9112,
+    version:   "2.0.0",
+    timestamp: Date.now(),
+  });
+});
+
+// ── GET /heartbeat ────────────────────────────────────────────────────────────
+
+app.get("/heartbeat", async (_req: Request, res: Response) => {
+  try {
+    const heartbeats = await getHeartbeats(10);
+    res.json({ heartbeats, count: heartbeats.length });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[api] /heartbeat error:", message);
+    res.status(500).json({ error: message });
+  }
+});
+
+// ── GET /sentiment/all — $0.05 ────────────────────────────────────────────────
+
+app.get("/sentiment/all", async (_req: Request, res: Response) => {
+  try {
+    const subjects = await getAllSentiment();
+    res.json({ subjects, count: subjects.length, updatedAt: new Date().toISOString() });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[api] /sentiment/all error:", message);
+    res.status(500).json({ error: message });
+  }
+});
+
+// ── GET /sentiment/:subject — free for IDs 1–3, $0.01 for IDs 4–8 ────────────
+
+app.get("/sentiment/:subject", async (req: Request, res: Response) => {
+  try {
+    const id = resolveSubjectId(String(req.params["subject"] ?? ""));
+    if (id === null) {
+      res.status(400).json({
+        error: "Unknown subject. Use an ID (1–8) or name (celo, btc, eth, cusd, ckes, vitalik, stablecoin, africa).",
+      });
+      return;
+    }
+
+    const record = await getSentiment(id);
+    if (record === null) {
+      res.status(404).json({ error: `No on-chain record found for subject ${id}.` });
+      return;
+    }
+
+    res.json(record);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[api] /sentiment/${req.params["subject"]} error:`, message);
+    res.status(500).json({ error: message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Start
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PORT = parseInt(process.env["PORT"] ?? "3000", 10);
+app.listen(PORT, () => {
+  console.log(`[api] Aeco oracle API running on port ${PORT}`);
+  console.log(`[api] Free:  GET /health, /heartbeat, /sentiment/1, /sentiment/2, /sentiment/3`);
+  console.log(`[api] Paid:  GET /sentiment/all ($0.05), /sentiment/4..8 ($0.01 each)`);
+});
+
+// Keep event loop alive
+process.stdin.resume();

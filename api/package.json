@@ -1,0 +1,25 @@
+{
+  "name": "aeco-api",
+  "version": "2.0.0",
+  "description": "Aeco oracle data API with x402 payment gating",
+  "main": "index.ts",
+  "scripts": {
+    "start": "ts-node index.ts",
+    "dev": "ts-node index.ts"
+  },
+  "dependencies": {
+    "@x402/core": "latest",
+    "@x402/evm": "latest",
+    "@x402/express": "latest",
+    "cors": "latest",
+    "dotenv": "latest",
+    "express": "latest",
+    "viem": "^2.50.4"
+  },
+  "devDependencies": {
+    "@types/cors": "latest",
+    "@types/express": "latest",
+    "ts-node": "latest",
+    "typescript": "latest"
+  }
+}
