@@ -47,7 +47,7 @@ export const publicClient = createPublicClient({
 
 export const agentAccount = privateKeyToAccount(AGENT_PRIVATE_KEY);
 
-const walletClient = createWalletClient({
+export const walletClient = createWalletClient({
   account:   agentAccount,
   chain:     celoSepolia,
   transport,
