@@ -26,6 +26,7 @@ import {
   recordHeartbeat,
   resolveExpiredPredictions,
 } from "./writer";
+import { submitReputation } from "./erc8004";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -212,6 +213,10 @@ export async function runCycle(): Promise<void> {
 
   console.log(`[agent] Checking for expired predictions to resolve...`);
   await resolveExpiredPredictions();
+
+  const agentId = 9112n;
+  console.log(`[agent] Submitting reputation for agent 9112...`);
+  await submitReputation(agentId, anyPosted ? 90 : 70, postedSubjects.length);
 
   console.log(`\n[agent] Cycle complete in ${cycleDurationMs}ms.`);
   console.log(`${"─".repeat(60)}\n`);
