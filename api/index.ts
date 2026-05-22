@@ -14,8 +14,6 @@ import "dotenv/config";
 import express, {
   type Request,
   type Response,
-  type NextFunction,
-  type RequestHandler,
 } from "express";
 import cors from "cors";
 import { paymentMiddleware, x402ResourceServer } from "@x402/express";
@@ -35,13 +33,6 @@ const facilitatorClient = new HTTPFacilitatorClient({
 
 const resourceServer = new x402ResourceServer(facilitatorClient)
   .register("eip155:42220", new ExactEvmScheme());
-
-const baseFacilitatorClient = new HTTPFacilitatorClient({
-  url: "https://x402.org/facilitator",
-});
-
-const baseResourceServer = new x402ResourceServer(baseFacilitatorClient)
-  .register("eip155:84532", new ExactEvmScheme());
 
 const PAID_ACCEPTS = {
   scheme:  "exact",
@@ -116,24 +107,6 @@ app.use(
   )
 );
 
-app.use(
-  paymentMiddleware(
-    {
-      "GET /demo/sentiment/:subject": {
-        accepts: {
-          scheme:  "exact",
-          price:   "$0.001",
-          network: "eip155:84532",
-          payTo:   AGENT_WALLET,
-        },
-        description: "Aeco sentiment oracle demo — Base Sepolia testnet",
-      },
-    },
-    baseResourceServer,
-    false,
-  )
-);
-
 app.use((req, _res, next) => {
   console.log(`[api] ${req.method} ${req.path}`);
   next();
@@ -177,10 +150,32 @@ app.get("/demo", (_req: Request, res: Response) => {
   });
 });
 
-// ── GET /demo/sentiment/:subject — $0.001 USDC on Base Sepolia ───────────────
+// ── GET /demo/sentiment/:subject — manual 402 flow, $0.001 USDC Base Sepolia ──
 
 app.get("/demo/sentiment/:subject", async (req: Request, res: Response) => {
   try {
+    const paymentHeader = req.headers["x-payment"] ?? req.headers["payment-signature"];
+
+    if (!paymentHeader) {
+      res.status(402).json({
+        x402Version: 1,
+        accepts: [{
+          scheme:            "exact",
+          network:           "eip155:84532",
+          maxAmountRequired: "1000",
+          resource:          `${req.protocol}://${req.get("host")}${req.originalUrl}`,
+          description:       "Aeco sentiment oracle — Base Sepolia demo",
+          mimeType:          "application/json",
+          payTo:             AGENT_WALLET,
+          maxTimeoutSeconds: 60,
+          asset:             "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+          extra:             {},
+        }],
+        error: "Payment required",
+      });
+      return;
+    }
+
     const id = resolveSubjectId(String(req.params["subject"] ?? ""));
     if (id === null) {
       res.status(400).json({
