@@ -223,12 +223,13 @@ function AgentScreen({ accent, activity, totalHeartbeats }) {
       <SectionHeader title="Agent Activity" subtitle="indexer telemetry · streaming live" />
 
       {/* Hero stats row */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         {[
           { label: 'Heartbeats', value: totalHeartbeats, sub: 'all time',      color: accent,     text: false },
           { label: 'Subjects',   value: 8,               sub: 'tracked',       color: '#a78bfa',  text: false },
           { label: 'Cycle',      value: '2h',            sub: 'scan interval', color: '#38bdf8',  text: true  },
           { label: 'Posts',      value: activity.length, sub: 'in feed',       color: '#22c55e',  text: false },
+          { label: '8004 ID',    value: '#9112',         sub: 'agent rank',    color: '#a78bfa',  text: true  },
         ].map((it, i) => (
           <FadeIn key={it.label} delay={i * 60} y={10} duration={460}
             className="rounded-xl border border-border bg-panel shadow-card p-5 relative overflow-hidden"
@@ -317,6 +318,53 @@ function AgentScreen({ accent, activity, totalHeartbeats }) {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Developer API section */}
+      <div className="mt-6 rounded-xl border border-border bg-panel shadow-card p-5">
+        <div className="flex items-center gap-2.5 mb-4">
+          <h3 className="text-[14px] font-semibold text-white tracking-tight">Developer API</h3>
+          <span className="text-[9px] uppercase tracking-[0.16em] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 ring-1 ring-inset ring-green-500/30">LIVE</span>
+        </div>
+
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/[0.04]">
+          <span className="text-[11.5px] text-gray-400">Base URL</span>
+          <a href="https://aeco.onrender.com" target="_blank" rel="noreferrer"
+            className="text-[11.5px] font-mono text-sky-400 hover:text-sky-300 transition-colors">
+            https://aeco.onrender.com
+          </a>
+        </div>
+
+        <div className="space-y-1 mb-4">
+          {[
+            { path: '/health',                  desc: 'Agent status',             paid: false },
+            { path: '/sentiment/1',             desc: 'CELO sentiment (live)',    paid: false },
+            { path: '/demo/sentiment/:subject', desc: 'Any subject, $0.001 USDC', paid: true  },
+          ].map((ep) => (
+            <div key={ep.path} className="flex items-center gap-3 py-1.5 text-[11.5px]">
+              <span className="font-mono text-green-400 text-[10px] w-8 shrink-0">GET</span>
+              <span className="font-mono text-gray-200 flex-1">{ep.path}</span>
+              <span className="text-gray-400 flex-1">{ep.desc}</span>
+              {ep.paid
+                ? <span className="text-[9px] uppercase tracking-[0.14em] font-bold px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-400 ring-1 ring-inset ring-yellow-500/25">PAID</span>
+                : <span className="text-[9px] uppercase tracking-[0.14em] font-bold px-1.5 py-0.5 rounded bg-green-500/15 text-green-400 ring-1 ring-inset ring-green-500/25">FREE</span>
+              }
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-lg bg-black/40 border border-white/[0.06] px-4 py-3 mb-3 font-mono text-[11.5px] text-gray-300 overflow-x-auto">
+          curl https://aeco.onrender.com/demo/sentiment/celo
+        </div>
+
+        <p className="text-[11px] text-gray-500 mb-3">
+          Returns HTTP 402 with payment requirements. Pay with any x402-compatible client to receive live sentiment data.
+        </p>
+
+        <a href="https://github.com/thenameisdevair/-Aeco/blob/main/V2_PRD.md" target="_blank" rel="noreferrer"
+          className="text-[11.5px] font-semibold text-sky-400 hover:text-sky-300 transition-colors">
+          View API Docs →
+        </a>
       </div>
     </section>
   );
