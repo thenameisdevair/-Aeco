@@ -72,6 +72,67 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ── GET /demo — free info ─────────────────────────────────────────────────────
+
+app.get("/demo", (_req: Request, res: Response) => {
+  res.json({
+    message:  "x402 demo endpoint — pay $0.001 USDC on Base Sepolia to access sentiment data",
+    network:  "Base Sepolia (eip155:84532)",
+    price:    "$0.001 USDC",
+    endpoint: "GET /demo/sentiment/:subject",
+    subjects: "1-8 or name (celo, btc, eth, cusd, ckes, vitalik, stablecoin, africa)",
+    docs:     "https://docs.x402.org",
+  });
+});
+
+// ── GET /demo/sentiment/:subject — manual 402 flow, $0.001 USDC Base Sepolia ──
+
+app.get("/demo/sentiment/:subject", async (req: Request, res: Response) => {
+  try {
+    const paymentHeader = req.headers["x-payment"] ?? req.headers["payment-signature"];
+
+    if (!paymentHeader) {
+      res.status(402).json({
+        x402Version: 1,
+        accepts: [{
+          scheme:            "exact",
+          network:           "eip155:84532",
+          maxAmountRequired: "1000",
+          resource:          `${req.protocol}://${req.get("host")}${req.originalUrl}`,
+          description:       "Aeco sentiment oracle — Base Sepolia demo",
+          mimeType:          "application/json",
+          payTo:             AGENT_WALLET,
+          maxTimeoutSeconds: 60,
+          asset:             "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+          extra:             {},
+        }],
+        error: "Payment required",
+      });
+      return;
+    }
+
+    const id = resolveSubjectId(String(req.params["subject"] ?? ""));
+    if (id === null) {
+      res.status(400).json({
+        error: "Unknown subject. Use an ID (1–8) or name (celo, btc, eth, cusd, ckes, vitalik, stablecoin, africa).",
+      });
+      return;
+    }
+
+    const record = await getSentiment(id);
+    if (record === null) {
+      res.status(404).json({ error: `No on-chain record found for subject ${id}.` });
+      return;
+    }
+
+    res.json(record);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[api] /demo/sentiment/${req.params["subject"]} error:`, message);
+    res.status(500).json({ error: message });
+  }
+});
+
 app.use(
   paymentMiddleware(
     {
@@ -133,67 +194,6 @@ app.get("/heartbeat", async (_req: Request, res: Response) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[api] /heartbeat error:", message);
-    res.status(500).json({ error: message });
-  }
-});
-
-// ── GET /demo — free info ─────────────────────────────────────────────────────
-
-app.get("/demo", (_req: Request, res: Response) => {
-  res.json({
-    message:  "x402 demo endpoint — pay $0.001 USDC on Base Sepolia to access sentiment data",
-    network:  "Base Sepolia (eip155:84532)",
-    price:    "$0.001 USDC",
-    endpoint: "GET /demo/sentiment/:subject",
-    subjects: "1-8 or name (celo, btc, eth, cusd, ckes, vitalik, stablecoin, africa)",
-    docs:     "https://docs.x402.org",
-  });
-});
-
-// ── GET /demo/sentiment/:subject — manual 402 flow, $0.001 USDC Base Sepolia ──
-
-app.get("/demo/sentiment/:subject", async (req: Request, res: Response) => {
-  try {
-    const paymentHeader = req.headers["x-payment"] ?? req.headers["payment-signature"];
-
-    if (!paymentHeader) {
-      res.status(402).json({
-        x402Version: 1,
-        accepts: [{
-          scheme:            "exact",
-          network:           "eip155:84532",
-          maxAmountRequired: "1000",
-          resource:          `${req.protocol}://${req.get("host")}${req.originalUrl}`,
-          description:       "Aeco sentiment oracle — Base Sepolia demo",
-          mimeType:          "application/json",
-          payTo:             AGENT_WALLET,
-          maxTimeoutSeconds: 60,
-          asset:             "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-          extra:             {},
-        }],
-        error: "Payment required",
-      });
-      return;
-    }
-
-    const id = resolveSubjectId(String(req.params["subject"] ?? ""));
-    if (id === null) {
-      res.status(400).json({
-        error: "Unknown subject. Use an ID (1–8) or name (celo, btc, eth, cusd, ckes, vitalik, stablecoin, africa).",
-      });
-      return;
-    }
-
-    const record = await getSentiment(id);
-    if (record === null) {
-      res.status(404).json({ error: `No on-chain record found for subject ${id}.` });
-      return;
-    }
-
-    res.json(record);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`[api] /demo/sentiment/${req.params["subject"]} error:`, message);
     res.status(500).json({ error: message });
   }
 });
