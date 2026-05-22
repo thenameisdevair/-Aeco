@@ -112,6 +112,7 @@ app.use(
     resourceServer,
     undefined,
     undefined,
+    false,
   )
 );
 
@@ -129,6 +130,7 @@ app.use(
       },
     },
     baseResourceServer,
+    false,
   )
 );
 
