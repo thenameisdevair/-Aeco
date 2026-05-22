@@ -36,6 +36,13 @@ const facilitatorClient = new HTTPFacilitatorClient({
 const resourceServer = new x402ResourceServer(facilitatorClient)
   .register("eip155:42220", new ExactEvmScheme());
 
+const baseFacilitatorClient = new HTTPFacilitatorClient({
+  url: "https://x402.org/facilitator",
+});
+
+const baseResourceServer = new x402ResourceServer(baseFacilitatorClient)
+  .register("eip155:84532", new ExactEvmScheme());
+
 const PAID_ACCEPTS = {
   scheme:  "exact",
   network: "eip155:42220",
@@ -108,6 +115,23 @@ app.use(
   )
 );
 
+app.use(
+  paymentMiddleware(
+    {
+      "GET /demo/sentiment/:subject": {
+        accepts: {
+          scheme:  "exact",
+          price:   "$0.001",
+          network: "eip155:84532",
+          payTo:   AGENT_WALLET,
+        },
+        description: "Aeco sentiment oracle demo — Base Sepolia testnet",
+      },
+    },
+    baseResourceServer,
+  )
+);
+
 app.use((req, _res, next) => {
   console.log(`[api] ${req.method} ${req.path}`);
   next();
@@ -134,6 +158,45 @@ app.get("/heartbeat", async (_req: Request, res: Response) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[api] /heartbeat error:", message);
+    res.status(500).json({ error: message });
+  }
+});
+
+// ── GET /demo — free info ─────────────────────────────────────────────────────
+
+app.get("/demo", (_req: Request, res: Response) => {
+  res.json({
+    message:  "x402 demo endpoint — pay $0.001 USDC on Base Sepolia to access sentiment data",
+    network:  "Base Sepolia (eip155:84532)",
+    price:    "$0.001 USDC",
+    endpoint: "GET /demo/sentiment/:subject",
+    subjects: "1-8 or name (celo, btc, eth, cusd, ckes, vitalik, stablecoin, africa)",
+    docs:     "https://docs.x402.org",
+  });
+});
+
+// ── GET /demo/sentiment/:subject — $0.001 USDC on Base Sepolia ───────────────
+
+app.get("/demo/sentiment/:subject", async (req: Request, res: Response) => {
+  try {
+    const id = resolveSubjectId(String(req.params["subject"] ?? ""));
+    if (id === null) {
+      res.status(400).json({
+        error: "Unknown subject. Use an ID (1–8) or name (celo, btc, eth, cusd, ckes, vitalik, stablecoin, africa).",
+      });
+      return;
+    }
+
+    const record = await getSentiment(id);
+    if (record === null) {
+      res.status(404).json({ error: `No on-chain record found for subject ${id}.` });
+      return;
+    }
+
+    res.json(record);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[api] /demo/sentiment/${req.params["subject"]} error:`, message);
     res.status(500).json({ error: message });
   }
 });
@@ -186,6 +249,7 @@ app.listen(PORT, () => {
   console.log(`[api] Aeco oracle API running on port ${PORT}`);
   console.log(`[api] Free:  GET /health, /heartbeat, /sentiment/1, /sentiment/2, /sentiment/3`);
   console.log(`[api] Paid:  GET /sentiment/all ($0.05), /sentiment/4..8 ($0.01 each)`);
+  console.log(`[api] Demo:  GET /demo/sentiment/:subject ($0.001 USDC on Base Sepolia)`);
 });
 
 // Keep event loop alive
