@@ -50,7 +50,7 @@ section { position: relative; overflow: hidden; }
 /* ── Scroll animation base ───────────────────────── */
 .fade-up {
   opacity: 0;
-  transform: translateY(36px);
+  transform: translateY(20px);
   transition: opacity 0.75s ease, transform 0.75s ease;
 }
 .fade-up.visible { opacity: 1; transform: translateY(0); }
@@ -60,25 +60,25 @@ section { position: relative; overflow: hidden; }
   position: absolute;
   font-family: 'Syne', sans-serif;
   font-weight: 800;
-  font-size: clamp(100px, 17vw, 240px);
-  color: rgba(245,200,66,0.035);
-  top: -0.15em;
-  left: -0.1em;
+  font-size: 180px;
+  color: var(--gold);
+  top: -30px;
+  left: -20px;
   line-height: 1;
   pointer-events: none;
   user-select: none;
   opacity: 0;
-  transform: translateY(16px);
-  transition: opacity 0.9s ease, transform 0.9s ease;
+  transition: opacity 0.9s ease;
 }
-.sec-num.visible { opacity: 1; transform: translateY(0); }
+.sec-num.visible { opacity: 0.06; }
 
 /* ── Section label ───────────────────────────────── */
 .sec-label {
   font-family: 'DM Mono', monospace;
   font-size: 11px;
-  letter-spacing: 4px;
-  color: var(--teal);
+  letter-spacing: 0.15em;
+  color: var(--gold);
+  opacity: 0.7;
   text-transform: uppercase;
   margin-bottom: 18px;
 }
@@ -97,11 +97,11 @@ section { position: relative; overflow: hidden; }
   border-radius: 50%;
   background: var(--green);
   flex-shrink: 0;
-  animation: pulse 2.4s ease-in-out infinite;
+  animation: pulse 2s ease-in-out infinite;
 }
 @keyframes pulse {
-  0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
-  50%      { box-shadow: 0 0 0 9px rgba(34,197,94,0); }
+  0%,100% { transform: scale(1); }
+  50%      { transform: scale(1.4); }
 }
 
 /* ══════════════════════════════════════════════════ */
@@ -125,9 +125,8 @@ section { position: relative; overflow: hidden; }
   z-index: 0;
 }
 
-/* teal radial glow */
-#hero::after {
-  content: '';
+/* teal radial glow — div for JS parallax */
+.hero-teal-glow {
   position: absolute;
   top: 30%;
   left: 50%;
@@ -136,6 +135,8 @@ section { position: relative; overflow: hidden; }
   background: radial-gradient(circle, rgba(34,201,201,0.06) 0%, transparent 65%);
   pointer-events: none;
   z-index: 0;
+  will-change: transform;
+  transition: transform 0.15s linear;
 }
 
 /* gold glow at center-bottom */
@@ -185,7 +186,7 @@ section { position: relative; overflow: hidden; }
   padding: 10px 22px;
   text-decoration: none;
   letter-spacing: 1px;
-  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+  transition: all 0.25s ease;
 }
 .btn-app:hover {
   background: rgba(245,200,66,0.08);
@@ -217,7 +218,7 @@ section { position: relative; overflow: hidden; }
 .hero-headline .w {
   display: inline-block;
   opacity: 0;
-  transform: translateY(64px);
+  transform: translateY(30px);
   transition: opacity 0.65s ease, transform 0.65s ease;
 }
 .hero-headline .w-gold { color: var(--gold); }
@@ -291,7 +292,7 @@ body.loaded .hero-status { transition-delay: 0.95s; }
 /* 2. THE PROBLEM                                    */
 /* ══════════════════════════════════════════════════ */
 #problem {
-  padding: 128px 0 120px;
+  padding: 120px 0;
   border-top: 1px solid var(--border);
 }
 .problem-grid {
@@ -301,9 +302,11 @@ body.loaded .hero-status { transition-delay: 0.95s; }
   align-items: start;
 }
 .problem-body {
-  font-size: 17px;
-  color: var(--muted);
-  line-height: 1.85;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  color: #9ca3af;
+  line-height: 1.7;
 }
 .problem-body p + p { margin-top: 16px; }
 
@@ -375,7 +378,7 @@ body.loaded .hero-status { transition-delay: 0.95s; }
   padding: 44px 32px 40px;
   position: relative;
   overflow: hidden;
-  transition: border-color 0.3s, box-shadow 0.3s;
+  transition: all 0.25s ease;
 }
 .how-card::after {
   content: '';
@@ -383,7 +386,7 @@ body.loaded .hero-status { transition-delay: 0.95s; }
   top: 0; left: 0; right: 0;
   height: 1px;
   background: transparent;
-  transition: background 0.3s;
+  transition: all 0.25s ease;
 }
 .how-card:hover { border-color: rgba(34,201,201,0.35); box-shadow: 0 0 40px rgba(34,201,201,0.04); }
 .how-card:hover::after { background: var(--teal); }
@@ -415,9 +418,11 @@ body.loaded .hero-status { transition-delay: 0.95s; }
   color: var(--fg);
 }
 .how-body {
-  font-size: 15px;
-  color: var(--muted);
-  line-height: 1.75;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  color: #9ca3af;
+  line-height: 1.7;
   position: relative;
 }
 
@@ -454,7 +459,7 @@ body.loaded .hero-status { transition-delay: 0.95s; }
   padding: 22px 18px 20px;
   position: relative;
   overflow: hidden;
-  transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+  transition: all 0.25s ease;
   cursor: default;
 }
 .oracle-card::before {
@@ -463,7 +468,7 @@ body.loaded .hero-status { transition-delay: 0.95s; }
   top: 0; left: 0; right: 0;
   height: 1px;
   background: var(--border);
-  transition: background 0.3s;
+  transition: all 0.25s ease;
 }
 .oracle-card:hover {
   border-color: rgba(245,200,66,0.25);
@@ -523,10 +528,12 @@ body.loaded .hero-status { transition-delay: 0.95s; }
   line-height: 1;
 }
 .oc-summary {
-  font-size: 11.5px;
-  color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  color: #9ca3af;
   font-style: italic;
-  line-height: 1.55;
+  line-height: 1.6;
   text-align: center;
 }
 
@@ -547,7 +554,7 @@ body.loaded .hero-status { transition-delay: 0.95s; }
 .eco-col {
   border-top: 2px solid var(--border);
   padding-top: 32px;
-  transition: border-color 0.3s;
+  transition: all 0.25s ease;
 }
 .eco-col:hover { border-color: rgba(245,200,66,0.5); }
 .eco-for {
@@ -565,7 +572,13 @@ body.loaded .hero-status { transition-delay: 0.95s; }
   margin-bottom: 14px;
   color: var(--fg);
 }
-.eco-body { font-size: 15px; color: var(--muted); line-height: 1.8; }
+.eco-body {
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  color: #9ca3af;
+  line-height: 1.7;
+}
 
 /* ══════════════════════════════════════════════════ */
 /* 6. PROOF                                          */
@@ -588,7 +601,7 @@ body.loaded .hero-status { transition-delay: 0.95s; }
   padding: 14px 18px;
   text-decoration: none;
   color: inherit;
-  transition: border-color 0.25s, box-shadow 0.25s;
+  transition: all 0.25s ease;
   min-width: 260px;
 }
 .chip:hover {
@@ -632,7 +645,7 @@ body.loaded .hero-status { transition-delay: 0.95s; }
   padding: 14px 24px;
   text-decoration: none;
   color: inherit;
-  transition: border-color 0.25s;
+  transition: all 0.25s ease;
 }
 .agent-chip:hover { border-color: var(--teal); }
 .agent-label {
@@ -685,12 +698,14 @@ body.loaded .hero-status { transition-delay: 0.95s; }
 }
 .story-text .sec-label { margin-bottom: 28px; }
 .story-text p {
-  font-size: 17px;
-  line-height: 1.9;
-  color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #9ca3af;
   margin-bottom: 24px;
 }
-.story-text p:first-of-type { color: rgba(232,232,240,0.88); }
+.story-text p:first-of-type { color: rgba(232,232,240,0.78); }
 
 .story-aside { display: flex; flex-direction: column; gap: 28px; padding-top: 4px; }
 .aside-label {
@@ -760,7 +775,7 @@ footer {
   color: var(--muted);
   text-decoration: none;
   letter-spacing: 0.5px;
-  transition: color 0.2s;
+  transition: all 0.25s ease;
 }
 .footer-links a:hover { color: var(--gold); }
 .footer-dot {
@@ -804,6 +819,7 @@ footer {
 <!-- ══════════════════════════════════════════════ -->
 <section id="hero">
   <div class="hero-glow"></div>
+  <div class="hero-teal-glow" id="heroTealGlow" aria-hidden="true"></div>
 
   <nav class="hero-nav">
     <a href="#" class="hero-logo" aria-label="Aeco home">
@@ -1129,7 +1145,7 @@ function buildGauge(score, signal) {
 
 function buildCard(d, i) {
   return `
-<div class="oracle-card fade-up" role="listitem" style="transition-delay:${i * 75}ms">
+<div class="oracle-card fade-up" role="listitem" style="transition-delay:${i * 50}ms">
   <div class="oc-top">
     <div class="oc-subject">${d.subject}</div>
     <div class="oc-badges">
@@ -1160,7 +1176,8 @@ headlineEl.innerHTML = HEADLINE_TEXT.split(' ').map((word, i) => {
   const cls = GOLD_WORDS.has(word) ? 'w w-gold'
             : TEAL_WORDS.has(word) ? 'w w-teal'
             : 'w';
-  return `<span class="${cls}" style="transition-delay:${i * 75}ms" aria-hidden="false">${word}&nbsp;</span>`;
+  const delay = (0.1 + i * 0.15).toFixed(2);
+  return `<span class="${cls}" style="transition-delay:${delay}s" aria-hidden="false">${word}&nbsp;</span>`;
 }).join('');
 
 /* ── Animate hero words on load ───────────────── */
@@ -1194,9 +1211,28 @@ const io = new IntersectionObserver((entries) => {
 
     io.unobserve(el);
   });
-}, { threshold: 0.12 });
+}, { threshold: 0.2, rootMargin: '0px 0px -50px 0px' });
 
 document.querySelectorAll('.fade-up, .sec-num').forEach(el => io.observe(el));
+
+/* ── Hero teal glow parallax ──────────────────── */
+(function () {
+  const hero     = document.getElementById('hero');
+  const tealGlow = document.getElementById('heroTealGlow');
+  if (!hero || !tealGlow) return;
+
+  hero.addEventListener('mousemove', (e) => {
+    const rect = hero.getBoundingClientRect();
+    const dx   = e.clientX - (rect.left + rect.width  / 2);
+    const dy   = e.clientY - (rect.top  + rect.height / 2);
+    tealGlow.style.transform =
+      `translate(calc(-50% + ${(dx * 0.1).toFixed(1)}px), calc(-50% + ${(dy * 0.1).toFixed(1)}px))`;
+  });
+
+  hero.addEventListener('mouseleave', () => {
+    tealGlow.style.transform = 'translate(-50%, -50%)';
+  });
+}());
 </script>
 </body>
 </html>
