@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+  if (document.referrer === '' && !sessionStorage.getItem('visited')) {
+    sessionStorage.setItem('visited', '1');
+    window.location.replace('/landing.html');
+  }
+</script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="talentapp:project_verification" content="5ca5abce0f99658009b324ffc30befb78a4c91639526ce8ecf9104f8b02db80406df19c80effd62221bd4fa29fabf5bb0d2f3bbdeefebf663f25e598e8d159d4">
@@ -10,6 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = {
