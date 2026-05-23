@@ -16,10 +16,12 @@ import express, {
   type Response,
 } from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import { paymentMiddleware, x402ResourceServer } from "@x402/express";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { getSentiment, getAllSentiment, getHeartbeats } from "./lib/contracts";
+import { handleFaucet } from "./faucet";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // x402 setup
@@ -69,8 +71,26 @@ function resolveSubjectId(param: string): number | null {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const app = express();
+
+// Trust proxy for correct IP detection on Render
+app.set('trust proxy', 1);
+
 app.use(cors());
 app.use(express.json());
+
+// ── IP rate limiter — 1 faucet claim per IP per 24 hours ─────────────────────
+
+const faucetLimiter = rateLimit({
+  windowMs:       24 * 60 * 60 * 1000,
+  max:            1,
+  message:        { error: 'Already claimed from this IP today. Try again in 24 hours.' },
+  standardHeaders: true,
+  legacyHeaders:   false,
+});
+
+// ── POST /faucet ──────────────────────────────────────────────────────────────
+
+app.post('/faucet', faucetLimiter, handleFaucet);
 
 // ── GET /demo — free info ─────────────────────────────────────────────────────
 

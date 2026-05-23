@@ -329,17 +329,87 @@ function LeaderRow({ row, index }) {
   );
 }
 
+// ---------- Faucet Banner ----------
+function FaucetBanner({ userAddress, onClaimed }) {
+  const [status, setStatus] = useState('idle'); // idle | loading | success | error
+  const [txHash, setTxHash] = useState('');
+
+  async function claim() {
+    setStatus('loading');
+    try {
+      const res = await fetch('https://aeco.onrender.com/faucet', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ wallet: userAddress }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setTxHash(data.txHash);
+      setStatus('success');
+      onClaimed?.();
+    } catch (err) {
+      setStatus('error');
+      console.error('[faucet]', err.message);
+    }
+  }
+
+  if (status === 'success') return (
+    <div className="rounded-lg bg-bull/10 border border-bull/30 px-3.5 py-3 mb-4 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-2 text-[12.5px] text-bull font-medium">
+        <span>✓</span>
+        <span>0.1 CELO sent — you can now make predictions</span>
+      </div>
+      <a
+        href={`https://celoscan.io/tx/${txHash}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[11px] font-semibold whitespace-nowrap"
+        style={{ color: '#f5c842' }}
+      >
+        View tx →
+      </a>
+    </div>
+  );
+
+  return (
+    <div className="rounded-lg border px-3.5 py-3 mb-4" style={{ background: 'rgba(245,200,66,0.05)', borderColor: 'rgba(245,200,66,0.25)' }}>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[12.5px] font-medium" style={{ color: '#f5c842' }}>
+          You need CELO for gas fees
+        </span>
+        <button
+          onClick={claim}
+          disabled={status === 'loading'}
+          className="shrink-0 rounded-md text-[11.5px] font-semibold px-3 py-1.5 transition"
+          style={{ background: '#f5c842', color: '#0a0a0f', opacity: status === 'loading' ? 0.6 : 1, cursor: status === 'loading' ? 'not-allowed' : 'pointer' }}
+        >
+          {status === 'loading' ? 'Sending… (up to 60s)' : 'Claim 0.1 CELO →'}
+        </button>
+      </div>
+      {status === 'error' && (
+        <p className="text-[11px] mt-2" style={{ color: '#ef4444' }}>
+          Already claimed or faucet empty. Try another wallet.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ---------- Prediction Modal ----------
 function PredictionModal({ subject, onClose }) {
   if (!subject) return null;
   const [mounted, setMounted] = useState(false);
   const [txStatus, setTxStatus] = useState(null);
   const [txHash, setTxHash] = useState(null);
+  const [celoBalance, setCeloBalance] = useState(null); // BigInt wei, null = unknown
+  const [walletAddr, setWalletAddr] = useState(null);
 
   useEffect(() => {
     if (subject) {
       setTxStatus(null);
       setTxHash(null);
+      setCeloBalance(null);
+      setWalletAddr(null);
       const t = requestAnimationFrame(() => setMounted(true));
       return () => cancelAnimationFrame(t);
     } else {
@@ -347,6 +417,25 @@ function PredictionModal({ subject, onClose }) {
       setTxStatus(null);
       setTxHash(null);
     }
+  }, [subject]);
+
+  useEffect(() => {
+    if (!subject || !window.ethereum) return;
+    (async () => {
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        const addr = accounts?.[0];
+        if (!addr) return;
+        setWalletAddr(addr);
+        const hex = await window.ethereum.request({
+          method: 'eth_getBalance',
+          params: [addr, 'latest'],
+        });
+        setCeloBalance(BigInt(hex));
+      } catch {
+        // ignore — banner simply won't show
+      }
+    })();
   }, [subject]);
 
   useEffect(() => {
@@ -485,6 +574,13 @@ function PredictionModal({ subject, onClose }) {
         <p className="text-[14px] text-gray-200 leading-snug mb-4">
           Will the sentiment score be <span className="font-semibold">higher</span> or <span className="font-semibold">lower</span> in 24 hours?
         </p>
+
+        {celoBalance !== null && celoBalance < 50000000000000000n && (
+          <FaucetBanner
+            userAddress={walletAddr}
+            onClaimed={() => setCeloBalance(null)}
+          />
+        )}
 
         {txStatus === 'error' && (
           <div className="mb-4 rounded-lg bg-bear/10 border border-bear/30 px-3.5 py-3 text-[12.5px] text-bear">
