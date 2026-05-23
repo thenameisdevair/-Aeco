@@ -365,6 +365,16 @@ function PredictionModal({ subject, onClose }) {
       const hash = await window.AecoData.makePrediction(subject.id, direction);
       setTxHash(hash);
       setTxStatus('success');
+      // After prediction tx confirms
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        const userAddress = accounts?.[0];
+        await window.AecoData.submitUserFeedback(userAddress, 85);
+        console.log('[feedback] User feedback submitted to ERC-8004');
+      } catch (e) {
+        // Silent fail — don't block the user experience
+        console.warn('[feedback] Feedback submission skipped:', e.message);
+      }
     } catch(err) {
       console.error(err);
       setTxStatus('error');

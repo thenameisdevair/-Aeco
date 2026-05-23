@@ -6,15 +6,14 @@
  *   Reputation Registry: 0x8004BAa17C55a88189AE136b182e5fdA19dE9b63
  */
 
-import { keccak256, toHex, type Address } from "viem";
+import { type Address } from "viem";
 import { walletClient, publicClient, agentAccount } from "./writer";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Contract addresses
 // ─────────────────────────────────────────────────────────────────────────────
 
-const IDENTITY_REGISTRY   = "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432" as Address;
-const REPUTATION_REGISTRY = "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63" as Address;
+const IDENTITY_REGISTRY = "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432" as Address;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Minimal ABIs
@@ -44,25 +43,6 @@ const identityRegistryAbi = [
       { name: "index", type: "uint256" },
     ],
     outputs: [{ name: "", type: "uint256" }],
-  },
-] as const;
-
-const reputationRegistryAbi = [
-  {
-    name:            "giveFeedback",
-    type:            "function",
-    stateMutability: "nonpayable",
-    inputs: [
-      { name: "agentId",      type: "uint256" },
-      { name: "score",        type: "uint256" },
-      { name: "decimals",     type: "uint256" },
-      { name: "tag1",         type: "string"  },
-      { name: "tag2",         type: "string"  },
-      { name: "endpoint",     type: "string"  },
-      { name: "feedbackURI",  type: "string"  },
-      { name: "feedbackHash", type: "bytes32" },
-    ],
-    outputs: [],
   },
 ] as const;
 
@@ -151,48 +131,3 @@ export async function registerAgent(agentURI: string): Promise<bigint | null> {
   }
 }
 
-/**
- * Submits a reputation update to the ERC-8004 Reputation Registry after each oracle cycle.
- *
- * Called once per agent cycle after recordHeartbeat() completes. Each submission
- * carries a unique feedbackHash derived from the agentId and current timestamp so
- * the registry cannot deduplicate successive writes.
- *
- * @param agentId        - The ERC-8004 token ID of the registered agent.
- * @param score          - Reputation score for this cycle (0–100).
- * @param subjectsPosted - Number of subjects successfully posted this cycle.
- * @returns True on successful broadcast, false on any error.
- */
-export async function submitReputation(
-  agentId:        bigint,
-  score:          number,
-  subjectsPosted: number,
-): Promise<boolean> {
-  const feedbackHash = keccak256(toHex(`aeco-${agentId}-${Date.now()}`));
-
-  try {
-    const txHash = await walletClient.writeContract({
-      address:      REPUTATION_REGISTRY,
-      abi:          reputationRegistryAbi,
-      functionName: "giveFeedback",
-      args: [
-        agentId,
-        BigInt(score),
-        0n,
-        "successRate",
-        "uptime",
-        "https://aeco-eight.vercel.app",
-        "",
-        feedbackHash,
-      ],
-    });
-
-    console.log(
-      `[erc8004] Reputation submitted — agentId: ${agentId} | score: ${score} | tx: ${txHash}`
-    );
-    return true;
-  } catch (err) {
-    console.error("[erc8004] submitReputation failed:", err);
-    return false;
-  }
-}

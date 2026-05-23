@@ -537,6 +537,57 @@ export async function resolvePrediction(predictionId) {
 }
 
 /**
+ * Submits user feedback to the ERC-8004 Reputation Registry on behalf of the connected wallet.
+ * Called after a successful prediction — the user rates the oracle they just bet on.
+ */
+export async function submitUserFeedback(userAddress, score) {
+  if (!window.ethereum) return null;
+
+  const REPUTATION_REGISTRY = '0x8004BAa17C55a88189AE136b182e5fdA19dE9b63';
+  const AGENT_ID = 9112n;
+
+  const data = encodeFunctionData({
+    abi: [{
+      name: 'giveFeedback',
+      type: 'function',
+      stateMutability: 'nonpayable',
+      inputs: [
+        { name: 'agentId',      type: 'uint256' },
+        { name: 'score',        type: 'int128'  },
+        { name: 'decimals',     type: 'uint8'   },
+        { name: 'tag1',         type: 'string'  },
+        { name: 'tag2',         type: 'string'  },
+        { name: 'endpoint',     type: 'string'  },
+        { name: 'feedbackURI',  type: 'string'  },
+        { name: 'feedbackHash', type: 'bytes32' },
+      ],
+      outputs: []
+    }],
+    functionName: 'giveFeedback',
+    args: [
+      AGENT_ID,
+      BigInt(score),
+      0n,
+      'prediction',
+      'user',
+      'https://aeco-eight.vercel.app',
+      '',
+      '0x0000000000000000000000000000000000000000000000000000000000000000'
+    ]
+  });
+
+  return window.ethereum.request({
+    method: 'eth_sendTransaction',
+    params: [{
+      from: userAddress,
+      to: REPUTATION_REGISTRY,
+      data,
+      type: '0x0'
+    }]
+  });
+}
+
+/**
  * Checks for window.ethereum and whether it's MiniPay.
  * Reads accounts with eth_accounts (no popup).
  * Returns { provider, isMiniPay, address } — address is null when no account is connected.
