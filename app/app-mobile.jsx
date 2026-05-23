@@ -376,6 +376,7 @@ function PredictScreen({ accent }) {
 }
 
 function WalletScreen({ accent, balance }) {
+  const [showHowToEarn, setShowHowToEarn] = useState(false);
   return (
     <main className="px-4 pt-4 pb-6">
       <SectionHeader title="Wallet" subtitle="not connected" />
@@ -399,11 +400,12 @@ function WalletScreen({ accent, balance }) {
           <button className="py-2.5 rounded-lg text-[12px] font-semibold text-ink" style={{ background: accent }}>
             Connect Wallet
           </button>
-          <button className="py-2.5 rounded-lg text-[12px] font-semibold text-gray-200 bg-white/[0.04] ring-1 ring-inset ring-white/[0.06] active:bg-white/[0.08]">
+          <button onClick={() => setShowHowToEarn(true)} className="py-2.5 rounded-lg text-[12px] font-semibold text-gray-200 bg-white/[0.04] ring-1 ring-inset ring-white/[0.06] active:bg-white/[0.08]">
             How to earn
           </button>
         </div>
       </FadeIn>
+      {showHowToEarn && <HowToEarnModal onClose={() => setShowHowToEarn(false)} />}
 
       <div className="mt-6 text-[11px] text-muted text-center font-mono">
         Connect your Celo wallet to claim AEC rewards.

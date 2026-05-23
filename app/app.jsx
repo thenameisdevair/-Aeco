@@ -590,6 +590,7 @@ function PredictScreen({ accent, onPredict, subjects, walletAddress }) {
 /* ===================== Wallet screen ===================== */
 function WalletScreen({ accent, balance, isMiniPay, walletAddress, onConnect, onDisconnect }) {
   console.log('[WalletScreen] walletAddress:', walletAddress);
+  const [showHowToEarn, setShowHowToEarn] = useState(false);
   const shortAddress = walletAddress
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : null;
@@ -665,10 +666,11 @@ function WalletScreen({ accent, balance, isMiniPay, walletAddress, onConnect, on
                     Connect Celo Wallet
                   </button>
             )}
-            <button className="px-5 py-2.5 rounded-md text-[13px] font-semibold text-gray-200 bg-white/[0.04] ring-1 ring-inset ring-white/[0.08] hover:bg-white/[0.07] transition">
+            <button onClick={() => setShowHowToEarn(true)} className="px-5 py-2.5 rounded-md text-[13px] font-semibold text-gray-200 bg-white/[0.04] ring-1 ring-inset ring-white/[0.08] hover:bg-white/[0.07] transition">
               How to earn
             </button>
           </div>
+          {showHowToEarn && <HowToEarnModal onClose={() => setShowHowToEarn(false)} />}
         </FadeIn>
 
         <FadeIn delay={140} y={12} duration={500}

@@ -655,8 +655,56 @@ function PredictionModal({ subject, onClose }) {
   );
 }
 
+function HowToEarnModal({ onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop bg-black/60" onClick={onClose}>
+      <div className="relative w-full max-w-md mx-4 bg-panel rounded-2xl ring-1 ring-white/10 p-6" onClick={e => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white text-xl">✕</button>
+        <h2 className="text-white font-bold text-lg mb-1">How to earn AEC</h2>
+        <p className="text-gray-400 text-sm mb-5">Aeco rewards you for using the oracle correctly.</p>
+
+        <div className="space-y-4">
+          <div className="flex gap-3">
+            <span className="text-gold font-bold text-sm mt-0.5">01</span>
+            <div>
+              <p className="text-white text-sm font-semibold">Make a prediction</p>
+              <p className="text-gray-400 text-xs mt-0.5">Pick HIGHER or LOWER on any sentiment subject. Each prediction costs nothing — just gas.</p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <span className="text-gold font-bold text-sm mt-0.5">02</span>
+            <div>
+              <p className="text-white text-sm font-semibold">Wait for resolution</p>
+              <p className="text-gray-400 text-xs mt-0.5">The agent posts a new score every 2 hours. Predictions resolve automatically when the next score arrives.</p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <span className="text-gold font-bold text-sm mt-0.5">03</span>
+            <div>
+              <p className="text-white text-sm font-semibold">Earn AEC tokens</p>
+              <p className="text-gray-400 text-xs mt-0.5">Correct predictions earn 10–20 AEC. Build a streak for bonus multipliers. Wrong predictions cost 5 AEC.</p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <span className="text-gold font-bold text-sm mt-0.5">04</span>
+            <div>
+              <p className="text-white text-sm font-semibold">Need gas? Claim CELO</p>
+              <p className="text-gray-400 text-xs mt-0.5">First time? Open any prediction and claim 0.1 CELO from the faucet to cover gas fees.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 pt-4 border-t border-white/10 text-xs text-gray-500 text-center">
+          AEC is the Aeco oracle token · Deployed on Celo Mainnet
+        </div>
+      </div>
+    </div>
+  );
+}
+
 Object.assign(window, {
   FadeIn, CountUp, ArcGauge, CategoryBadge, SignalBadge, ConfidenceBar,
   SentimentCard, SectionHeader, ActivityRow, LeaderRow, PredictionModal,
+  HowToEarnModal,
   signalColor, signalBg, signalRing,
 });
