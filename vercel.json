@@ -4,8 +4,9 @@
     { "src": "app/*.html", "use": "@vercel/static" }
   ],
   "routes": [
+    { "src": "/", "dest": "/app/landing.html" },
+    { "src": "/app", "dest": "/app/index.html" },
     { "src": "/mobile", "dest": "/app/mobile.html" },
-    { "src": "/mobile.html", "dest": "/app/mobile.html" },
-    { "src": "/", "dest": "/app/index.html" }
+    { "src": "/mobile.html", "dest": "/app/mobile.html" }
   ]
 }
