@@ -209,11 +209,26 @@ section { position: relative; overflow: hidden; }
 
 .hero-headline {
   font-family: 'Syne', sans-serif;
-  font-weight: 800;
-  font-size: clamp(40px, 7.5vw, 100px);
-  line-height: 1.04;
   max-width: 960px;
   margin-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+.hero-headline .line-1 {
+  font-weight: 300;
+  font-size: clamp(36px, 5vw, 72px);
+  color: #e5e7eb;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.hero-headline .line-2 {
+  font-weight: 800;
+  font-size: clamp(48px, 7vw, 96px);
+  color: var(--gold);
+  letter-spacing: -0.03em;
+  line-height: 1.05;
 }
 .hero-headline .w {
   display: inline-block;
@@ -221,8 +236,6 @@ section { position: relative; overflow: hidden; }
   transform: translateY(30px);
   transition: opacity 0.65s ease, transform 0.65s ease;
 }
-.hero-headline .w-gold { color: var(--gold); }
-.hero-headline .w-teal { color: var(--teal); }
 
 .hero-sub {
   font-family: 'DM Sans', sans-serif;
@@ -806,7 +819,8 @@ footer {
 }
 @media (max-width: 560px) {
   .oracle-grid { grid-template-columns: 1fr; }
-  .hero-headline { font-size: clamp(36px, 11vw, 60px); }
+  .hero-headline .line-1 { font-size: clamp(28px, 8vw, 40px); }
+  .hero-headline .line-2 { font-size: clamp(36px, 11vw, 56px); }
   .chip { min-width: 100%; }
   .proof-chips { flex-direction: column; }
 }
@@ -1166,19 +1180,26 @@ function buildCard(d, i) {
 /* ── Render oracle grid ───────────────────────── */
 document.getElementById('oracleGrid').innerHTML = ORACLE.map(buildCard).join('');
 
-/* ── Hero headline word split ─────────────────── */
-const HEADLINE_TEXT = 'The AI that reads the world. Writes to Celo.';
-const GOLD_WORDS    = new Set(['Writes', 'to', 'Celo.']);
-const TEAL_WORDS    = new Set(['AI']);
+/* ── Hero headline — two-line composition ─────── */
+const LINE1 = ['The', 'AI', 'that', 'reads', 'the', 'world'];
+const LINE2 = ['Writes', 'to', 'Celo.'];
 
 const headlineEl = document.getElementById('heroHeadline');
-headlineEl.innerHTML = HEADLINE_TEXT.split(' ').map((word, i) => {
-  const cls = GOLD_WORDS.has(word) ? 'w w-gold'
-            : TEAL_WORDS.has(word) ? 'w w-teal'
-            : 'w';
-  const delay = (0.1 + i * 0.15).toFixed(2);
-  return `<span class="${cls}" style="transition-delay:${delay}s" aria-hidden="false">${word}&nbsp;</span>`;
+let wi = 0;
+
+const line1Html = LINE1.map(word => {
+  const delay = (0.1 + wi++ * 0.15).toFixed(2);
+  return `<span class="w" style="transition-delay:${delay}s">${word}&nbsp;</span>`;
 }).join('');
+
+const line2Html = LINE2.map(word => {
+  const delay = (0.1 + wi++ * 0.15).toFixed(2);
+  return `<span class="w" style="transition-delay:${delay}s">${word}&nbsp;</span>`;
+}).join('');
+
+headlineEl.innerHTML =
+  `<div class="line-1">${line1Html}</div>` +
+  `<div class="line-2">${line2Html}</div>`;
 
 /* ── Animate hero words on load ───────────────── */
 function animateHeroWords() {
