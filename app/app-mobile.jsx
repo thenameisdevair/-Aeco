@@ -20,7 +20,7 @@ const ACCENT_OPTIONS = [
 ];
 
 /* ===================== Shared UI ===================== */
-function MobileTopNav({ balance, lastScan, accent }) {
+function MobileTopNav({ balance, lastScan, accent, isMiniPay, walletAddress }) {
   return (
     <div className="sticky top-0 z-30 backdrop-blur-xl bg-ink/85 border-b border-border">
       <div className="px-4 pt-3 pb-2.5 flex items-center justify-between gap-3">
@@ -48,15 +48,21 @@ function MobileTopNav({ balance, lastScan, accent }) {
               <path d="M2 4h10M2 7h10M2 10h10" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </button>
-          <button
-            className="px-3 h-9 rounded-md text-ink text-[11.5px] font-bold tracking-wide active:opacity-80 transition-opacity"
-            style={{
-              background: accent,
-              boxShadow: `0 0 0 1px ${accent}40, 0 8px 24px -8px ${accent}66`,
-            }}
-          >
-            Connect
-          </button>
+          {isMiniPay ? (
+            <span className="text-xs font-semibold px-2 py-1 rounded-full bg-gold/10 text-gold border border-gold/20">
+              MiniPay
+            </span>
+          ) : (
+            <button
+              className="px-3 h-9 rounded-md text-ink text-[11.5px] font-bold tracking-wide active:opacity-80 transition-opacity"
+              style={{
+                background: accent,
+                boxShadow: `0 0 0 1px ${accent}40, 0 8px 24px -8px ${accent}66`,
+              }}
+            >
+              Connect
+            </button>
+          )}
         </div>
       </div>
 
@@ -375,11 +381,18 @@ function PredictScreen({ accent }) {
   );
 }
 
-function WalletScreen({ accent, balance }) {
+function WalletScreen({ accent, balance, isMiniPay, walletAddress }) {
   const [showHowToEarn, setShowHowToEarn] = useState(false);
+  const shortAddress = walletAddress
+    ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+    : null;
+  const subtitle = walletAddress
+    ? `Connected · ${shortAddress}`
+    : isMiniPay ? 'MiniPay' : 'not connected';
+
   return (
     <main className="px-4 pt-4 pb-6">
-      <SectionHeader title="Wallet" subtitle="not connected" />
+      <SectionHeader title="Wallet" subtitle={subtitle} />
 
       <FadeIn delay={60} y={12} duration={500}
         className="rounded-2xl p-5 overflow-hidden relative"
@@ -397,9 +410,15 @@ function WalletScreen({ accent, balance }) {
         </div>
         <div className="text-[12px] text-gray-400 mb-4">≈ $128.40 USD · earned this week +84 AEC</div>
         <div className="grid grid-cols-2 gap-2">
-          <button className="py-2.5 rounded-lg text-[12px] font-semibold text-ink" style={{ background: accent }}>
-            Connect Wallet
-          </button>
+          {isMiniPay ? (
+            <span className="py-2.5 rounded-lg text-[12px] font-semibold px-2 flex items-center justify-center bg-gold/10 text-gold border border-gold/20">
+              MiniPay
+            </span>
+          ) : (
+            <button className="py-2.5 rounded-lg text-[12px] font-semibold text-ink" style={{ background: accent }}>
+              Connect Wallet
+            </button>
+          )}
           <button onClick={() => setShowHowToEarn(true)} className="py-2.5 rounded-lg text-[12px] font-semibold text-gray-200 bg-white/[0.04] ring-1 ring-inset ring-white/[0.06] active:bg-white/[0.08]">
             How to earn
           </button>
@@ -408,7 +427,7 @@ function WalletScreen({ accent, balance }) {
       {showHowToEarn && <HowToEarnModal onClose={() => setShowHowToEarn(false)} />}
 
       <div className="mt-6 text-[11px] text-muted text-center font-mono">
-        Connect your Celo wallet to claim AEC rewards.
+        {walletAddress ? `Wallet: ${shortAddress}` : 'Connect your Celo wallet to claim AEC rewards.'}
       </div>
     </main>
   );
@@ -450,6 +469,28 @@ function MobileApp({ t, setTweak }) {
   const [activeTab, setActiveTab] = useState('feed');
   const [modalSubject, setModalSubject] = useState(() => t.openModalOnLaunch ? window.SUBJECTS[0] : null);
   const [filter, setFilter] = useState('ALL');
+  const [isMiniPay, setIsMiniPay] = useState(Boolean(window.ethereum?.isMiniPay));
+  const [walletAddress, setWalletAddress] = useState(null);
+
+  useEffect(() => {
+    async function connectMiniPay() {
+      if (window.ethereum && window.ethereum.isMiniPay) {
+        try {
+          setIsMiniPay(true);
+          const accounts = await window.ethereum.request({
+            method: 'eth_requestAccounts',
+            params: []
+          });
+          if (accounts && accounts[0]) {
+            setWalletAddress(accounts[0]);
+          }
+        } catch (err) {
+          console.error('MiniPay connect error:', err);
+        }
+      }
+    }
+    connectMiniPay();
+  }, []);
 
   // animation speed CSS variable on root
   const speed = useMemo(() => Math.max(0.2, t.animationSpeed || 1), [t.animationSpeed]);
@@ -484,7 +525,7 @@ function MobileApp({ t, setTweak }) {
 
       {/* Scroll container */}
       <div className={`relative flex-1 overflow-y-auto scroll-thin ${t.showDottedBg ? 'bg-grid' : ''}`}>
-        <MobileTopNav balance={1284} lastScan="4m ago" accent={t.accent} />
+        <MobileTopNav balance={1284} lastScan="4m ago" accent={t.accent} isMiniPay={isMiniPay} walletAddress={walletAddress} />
 
         {activeTab === 'feed' && (
           <FeedScreen
@@ -497,12 +538,12 @@ function MobileApp({ t, setTweak }) {
         )}
         {activeTab === 'agent'   && <AgentScreen accent={t.accent} />}
         {activeTab === 'predict' && <PredictScreen accent={t.accent} />}
-        {activeTab === 'wallet'  && <WalletScreen accent={t.accent} balance={1284} />}
+        {activeTab === 'wallet'  && <WalletScreen accent={t.accent} balance={1284} isMiniPay={isMiniPay} walletAddress={walletAddress} />}
       </div>
 
       <BottomTabBar active={activeTab} onChange={goToTab} accent={t.accent} />
 
-      <MobilePredictionModal subject={modalSubject} onClose={() => setModalSubject(null)} />
+      <MobilePredictionModal subject={modalSubject} onClose={() => setModalSubject(null)} walletAddress={walletAddress} />
 
       {/* Tweaks panel (lives outside the device — see Page) */}
     </div>
