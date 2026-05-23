@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <script>
-  if (window.ethereum?.isMiniPay || window.innerWidth < 768) {
+  if (!window.ethereum?.isMiniPay && window.innerWidth < 768) {
     window.location.replace('/mobile.html');
   }
 </script>
