@@ -175,6 +175,18 @@ const heartbeatOracleAbi = [
     ],
     outputs: [],
   },
+  {
+    name:            "getHistory",
+    type:            "function",
+    stateMutability: "view",
+    inputs:          [],
+    outputs: [{ name: "", type: "tuple[]", components: [
+      { name: "timestamp", type: "uint256" },
+      { name: "scanned",   type: "uint8"   },
+      { name: "anyPosted", type: "bool"    },
+      { name: "version",   type: "string"  },
+    ]}],
+  },
 ] as const;
 
 const PREDICTION_GAME_ADDRESS = "0xD72AFE68Bfb0651A9AE6d641aBD66400a168EdeC" as Address;
@@ -427,12 +439,12 @@ export async function resolveExpiredPredictions(): Promise<void> {
 }
 
 /**
- * After resolving predictions, calculates oracle accuracy from the last 20
- * predictions and submits oracle_accuracy feedback to the ERC-8004 Reputation
- * Registry using the deployer wallet (not the agent wallet — owner cannot
- * self-rate).
+ * Submits two ERC-8004 Reputation Registry feedback entries via the deployer
+ * wallet: successRate (from last 20 resolved predictions) and uptime (from
+ * the last 12 heartbeat slots). Both scores are encoded with 2 decimal places
+ * (multiply × 10000 so 9500 = 95.00%).
  */
-export async function submitOracleAccuracyFeedback(): Promise<void> {
+export async function submitAgentFeedback(): Promise<void> {
   const REPUTATION_REGISTRY = "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63" as Address;
   const AGENT_ID = 9112n;
 
@@ -454,67 +466,91 @@ export async function submitOracleAccuracyFeedback(): Promise<void> {
   }] as const;
 
   try {
+    // ── successRate ──────────────────────────────────────────────────────────
     const total = await publicClient.readContract({
       address:      PREDICTION_GAME_ADDRESS,
       abi:          predictionGameAbi,
       functionName: "predictionCount",
     });
-
     const totalNum = Number(total);
-    if (totalNum === 0) {
-      console.log("[accuracy] No predictions yet — skipping feedback");
-      return;
+
+    let successRateValue = 10000n; // default 100.00% if no predictions yet
+    if (totalNum > 0) {
+      const start = Math.max(1, totalNum - 19);
+      let correct  = 0;
+      let resolved = 0;
+      for (let id = totalNum; id >= start; id--) {
+        const pred = await publicClient.readContract({
+          address:      PREDICTION_GAME_ADDRESS,
+          abi:          predictionGameAbi,
+          functionName: "getPrediction",
+          args:         [BigInt(id)],
+        });
+        if (!pred.resolved) continue;
+        resolved++;
+        if (pred.correct) correct++;
+      }
+      if (resolved > 0) {
+        successRateValue = BigInt(Math.round((correct / resolved) * 10000));
+      }
     }
 
-    const start = Math.max(1, totalNum - 19);
-    let correct  = 0;
-    let resolved = 0;
-
-    for (let id = totalNum; id >= start; id--) {
-      const pred = await publicClient.readContract({
-        address:      PREDICTION_GAME_ADDRESS,
-        abi:          predictionGameAbi,
-        functionName: "getPrediction",
-        args:         [BigInt(id)],
-      });
-      if (!pred.resolved) continue;
-      resolved++;
-      if (pred.correct) correct++;
-    }
-
-    if (resolved === 0) {
-      console.log("[accuracy] No resolved predictions yet — skipping feedback");
-      return;
-    }
-
-    const accuracyScore = Math.round((correct / resolved) * 100);
-    const feedbackHash  = keccak256(toHex(`oracle-accuracy-${AGENT_ID}-${Date.now()}`));
-
-    const nonce = await publicClient.getTransactionCount({
+    const successHash = keccak256(toHex(`successRate-${AGENT_ID}-${Date.now()}`));
+    let nonce = await publicClient.getTransactionCount({
       address:  deployerAccount.address,
       blockTag: "pending",
     });
 
-    const txHash = await deployerClient.writeContract({
+    const tx1 = await deployerClient.writeContract({
       address:      REPUTATION_REGISTRY,
       abi:          reputationAbi,
       functionName: "giveFeedback",
       nonce,
       args: [
         AGENT_ID,
-        BigInt(accuracyScore),
-        0,
-        "oracle_accuracy",
-        `${correct}/${resolved}`,
+        successRateValue,
+        2n,
+        "successRate",
+        "",
         "https://aeco-eight.vercel.app",
         "",
-        feedbackHash,
+        successHash,
       ],
     });
+    console.log(`[feedback] successRate submitted — ${successRateValue / 100n}.${(successRateValue % 100n).toString().padStart(2, "0")}% | tx ${tx1}`);
 
-    console.log(`[accuracy] oracle_accuracy feedback submitted — ${correct}/${resolved} correct (${accuracyScore}%) | tx ${txHash}`);
+    // ── uptime ───────────────────────────────────────────────────────────────
+    const history = await publicClient.readContract({
+      address:      HEARTBEAT_ORACLE_ADDRESS,
+      abi:          heartbeatOracleAbi,
+      functionName: "getHistory",
+    });
+
+    const last12      = history.slice(-12);
+    const uptimeValue = BigInt(Math.round((last12.length / 12) * 10000));
+    const uptimeHash  = keccak256(toHex(`uptime-${AGENT_ID}-${Date.now()}`));
+
+    nonce++;
+    const tx2 = await deployerClient.writeContract({
+      address:      REPUTATION_REGISTRY,
+      abi:          reputationAbi,
+      functionName: "giveFeedback",
+      nonce,
+      args: [
+        AGENT_ID,
+        uptimeValue,
+        2n,
+        "uptime",
+        "",
+        "https://aeco-eight.vercel.app",
+        "",
+        uptimeHash,
+      ],
+    });
+    console.log(`[feedback] uptime submitted — ${last12.length}/12 cycles (${uptimeValue / 100n}.${(uptimeValue % 100n).toString().padStart(2, "0")}%) | tx ${tx2}`);
+
   } catch (err) {
-    console.error("[accuracy] submitOracleAccuracyFeedback failed:", err);
+    console.error("[feedback] submitAgentFeedback failed:", err);
   }
 }
 

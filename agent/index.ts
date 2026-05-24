@@ -25,7 +25,7 @@ import {
   postSentiment,
   recordHeartbeat,
   resolveExpiredPredictions,
-  submitOracleAccuracyFeedback,
+  submitAgentFeedback,
 } from "./writer";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -213,7 +213,7 @@ export async function runCycle(): Promise<void> {
 
   console.log(`[agent] Checking for expired predictions to resolve...`);
   await resolveExpiredPredictions();
-  await submitOracleAccuracyFeedback();
+  await submitAgentFeedback();
 
   console.log(`\n[agent] Cycle complete in ${cycleDurationMs}ms.`);
   console.log(`${"─".repeat(60)}\n`);
