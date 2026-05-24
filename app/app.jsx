@@ -818,15 +818,27 @@ function App() {
       try {
         const api = window.AecoData;
         if (!api) return;
+
+        const t0 = Date.now();
         const [liveSubjects, liveStatus, liveActivity] = await Promise.all([
           api.fetchAllSubjects(),
           api.fetchAgentStatus(),
           api.fetchHeartbeats(10),
         ]);
+        const responseMs = Date.now() - t0;
+
         if (cancelled) return;
         if (liveSubjects?.length > 0) setSubjects(liveSubjects);
         if (liveStatus)               setAgentStatus(liveStatus);
         if (liveActivity?.length > 0) setActivity(liveActivity);
+
+        // Submit responseTime feedback once per session only
+        // Only if wallet is connected — need a third-party address
+        const addr = walletAddress;
+        if (addr && !window._feedbackSubmitted) {
+          window._feedbackSubmitted = true;
+          api.submitUserFeedback(addr, responseMs, 'responseTime', '').catch(() => {});
+        }
       } catch {
         // silently keep mock data on error
       } finally {

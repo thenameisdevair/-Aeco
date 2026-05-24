@@ -540,7 +540,7 @@ export async function resolvePrediction(predictionId) {
  * Submits user feedback to the ERC-8004 Reputation Registry on behalf of the connected wallet.
  * Called after a successful prediction — the user rates the oracle they just bet on.
  */
-export async function submitUserFeedback(userAddress, score) {
+export async function submitUserFeedback(userAddress, score, tag1 = 'prediction', tag2 = 'engaged') {
   if (!window.ethereum) return null;
 
   const REPUTATION_REGISTRY = '0x8004BAa17C55a88189AE136b182e5fdA19dE9b63';
@@ -566,10 +566,10 @@ export async function submitUserFeedback(userAddress, score) {
     functionName: 'giveFeedback',
     args: [
       AGENT_ID,
-      BigInt(score),
+      BigInt(Math.round(score)),
       0n,
-      'prediction',
-      'user',
+      tag1,
+      tag2,
       'https://aeco-eight.vercel.app',
       '',
       '0x0000000000000000000000000000000000000000000000000000000000000000'

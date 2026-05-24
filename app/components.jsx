@@ -458,7 +458,7 @@ function PredictionModal({ subject, onClose }) {
       try {
         const accounts = await window.ethereum.request({ method: 'eth_accounts' });
         const userAddress = accounts?.[0];
-        await window.AecoData.submitUserFeedback(userAddress, 85);
+        await window.AecoData.submitUserFeedback(userAddress, 85, 'starred', 'prediction');
         console.log('[feedback] User feedback submitted to ERC-8004');
       } catch (e) {
         // Silent fail — don't block the user experience
