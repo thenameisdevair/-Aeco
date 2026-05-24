@@ -24,6 +24,7 @@ jobs:
         env:
           GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
           PRIVATE_KEY_AGENT: ${{ secrets.PRIVATE_KEY_AGENT }}
+          PRIVATE_KEY_DEPLOYER: ${{ secrets.PRIVATE_KEY_DEPLOYER }}
           AGENT_WALLET: ${{ secrets.AGENT_WALLET }}
           RPC_URL: ${{ secrets.RPC_URL }}
           SENTIMENT_FEED_ADDRESS: ${{ secrets.SENTIMENT_FEED_ADDRESS }}

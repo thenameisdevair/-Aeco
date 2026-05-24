@@ -15,10 +15,12 @@ import {
   createPublicClient,
   createWalletClient,
   http,
+  keccak256,
+  toHex,
   type Address,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { celoSepolia } from "viem/chains";
+import { celo, celoSepolia } from "viem/chains";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Environment
@@ -28,10 +30,15 @@ const RPC_URL                  = process.env["RPC_URL"]                  ?? "";
 const SENTIMENT_FEED_ADDRESS   = (process.env["SENTIMENT_FEED_ADDRESS"]  ?? "") as Address;
 const HEARTBEAT_ORACLE_ADDRESS = (process.env["HEARTBEAT_ORACLE_ADDRESS"] ?? "") as Address;
 const RAW_AGENT_KEY            = process.env["PRIVATE_KEY_AGENT"]        ?? "";
+const RAW_DEPLOYER_KEY         = process.env["PRIVATE_KEY_DEPLOYER"]     ?? "";
 
-// Normalise private key — ensure 0x prefix.
+// Normalise private keys — ensure 0x prefix.
 const AGENT_PRIVATE_KEY = (
   RAW_AGENT_KEY.startsWith("0x") ? RAW_AGENT_KEY : `0x${RAW_AGENT_KEY}`
+) as `0x${string}`;
+
+const DEPLOYER_PRIVATE_KEY = (
+  RAW_DEPLOYER_KEY.startsWith("0x") ? RAW_DEPLOYER_KEY : `0x${RAW_DEPLOYER_KEY}`
 ) as `0x${string}`;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -51,6 +58,14 @@ export const walletClient = createWalletClient({
   account:   agentAccount,
   chain:     celoSepolia,
   transport,
+});
+
+export const deployerAccount = privateKeyToAccount(DEPLOYER_PRIVATE_KEY);
+
+export const deployerClient = createWalletClient({
+  account:   deployerAccount,
+  chain:     celo,
+  transport: http(process.env["RPC_URL"]!),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -408,6 +423,98 @@ export async function resolveExpiredPredictions(): Promise<void> {
     } catch (err) {
       console.error(`[writer] resolvePrediction #${id} failed:`, err);
     }
+  }
+}
+
+/**
+ * After resolving predictions, calculates oracle accuracy from the last 20
+ * predictions and submits oracle_accuracy feedback to the ERC-8004 Reputation
+ * Registry using the deployer wallet (not the agent wallet — owner cannot
+ * self-rate).
+ */
+export async function submitOracleAccuracyFeedback(): Promise<void> {
+  const REPUTATION_REGISTRY = "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63" as Address;
+  const AGENT_ID = 9112n;
+
+  const reputationAbi = [{
+    name: "giveFeedback",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "agentId",      type: "uint256" },
+      { name: "score",        type: "int128"  },
+      { name: "decimals",     type: "uint8"   },
+      { name: "tag1",         type: "string"  },
+      { name: "tag2",         type: "string"  },
+      { name: "endpoint",     type: "string"  },
+      { name: "feedbackURI",  type: "string"  },
+      { name: "feedbackHash", type: "bytes32" },
+    ],
+    outputs: [],
+  }] as const;
+
+  try {
+    const total = await publicClient.readContract({
+      address:      PREDICTION_GAME_ADDRESS,
+      abi:          predictionGameAbi,
+      functionName: "predictionCount",
+    });
+
+    const totalNum = Number(total);
+    if (totalNum === 0) {
+      console.log("[accuracy] No predictions yet — skipping feedback");
+      return;
+    }
+
+    const start = Math.max(1, totalNum - 19);
+    let correct  = 0;
+    let resolved = 0;
+
+    for (let id = totalNum; id >= start; id--) {
+      const pred = await publicClient.readContract({
+        address:      PREDICTION_GAME_ADDRESS,
+        abi:          predictionGameAbi,
+        functionName: "getPrediction",
+        args:         [BigInt(id)],
+      });
+      if (!pred.resolved) continue;
+      resolved++;
+      if (pred.correct) correct++;
+    }
+
+    if (resolved === 0) {
+      console.log("[accuracy] No resolved predictions yet — skipping feedback");
+      return;
+    }
+
+    const accuracyScore = Math.round((correct / resolved) * 100);
+    const feedbackHash  = keccak256(toHex(`oracle-accuracy-${AGENT_ID}-${Date.now()}`));
+
+    const nonce = await publicClient.getTransactionCount({
+      address:  deployerAccount.address,
+      blockTag: "pending",
+    });
+
+    const txHash = await deployerClient.writeContract({
+      address:      REPUTATION_REGISTRY,
+      abi:          reputationAbi,
+      functionName: "giveFeedback",
+      nonce,
+      args: [
+        AGENT_ID,
+        BigInt(accuracyScore),
+        0,
+        "oracle_accuracy",
+        `${correct}/${resolved}`,
+        "https://aeco-eight.vercel.app",
+        "",
+        feedbackHash,
+      ],
+    });
+
+    console.log(`[accuracy] oracle_accuracy feedback submitted — ${correct}/${resolved} correct (${accuracyScore}%) | tx ${txHash}`);
+  } catch (err) {
+    console.error("[accuracy] submitOracleAccuracyFeedback failed:", err);
   }
 }
 
