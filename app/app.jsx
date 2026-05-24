@@ -390,6 +390,60 @@ function PredictScreen({ accent, onPredict, subjects, walletAddress }) {
     });
   }, []);
 
+  // Fire starred feedback once per correctly resolved prediction
+  useEffect(() => {
+    if (!walletAddress || recentPredictions.length === 0) return;
+
+    const storageKey = `aeco_feedback_sent_${walletAddress}`;
+    const alreadySent = JSON.parse(localStorage.getItem(storageKey) || '[]');
+
+    const newCorrect = recentPredictions.filter(
+      (p) => p.resolved && p.correct && !alreadySent.includes(p.id)
+    );
+
+    if (newCorrect.length === 0) return;
+
+    newCorrect.forEach((p) => {
+      window.AecoData.submitUserFeedback(
+        walletAddress,
+        95,
+        'starred',
+        'correct'
+      ).catch(() => {});
+    });
+
+    const updated = [...alreadySent, ...newCorrect.map((p) => p.id)];
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+
+  }, [recentPredictions, walletAddress]);
+
+  // Fire starred feedback for incorrect resolutions too — honest signal
+  useEffect(() => {
+    if (!walletAddress || recentPredictions.length === 0) return;
+
+    const storageKey = `aeco_feedback_wrong_${walletAddress}`;
+    const alreadySent = JSON.parse(localStorage.getItem(storageKey) || '[]');
+
+    const newWrong = recentPredictions.filter(
+      (p) => p.resolved && !p.correct && !alreadySent.includes(p.id)
+    );
+
+    if (newWrong.length === 0) return;
+
+    newWrong.forEach((p) => {
+      window.AecoData.submitUserFeedback(
+        walletAddress,
+        55,
+        'starred',
+        'incorrect'
+      ).catch(() => {});
+    });
+
+    const updated = [...alreadySent, ...newWrong.map((p) => p.id)];
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+
+  }, [recentPredictions, walletAddress]);
+
   const myStreak   = userStats.currentStreak;
   const myAccuracy = userStats.totalPredictions > 0
     ? Math.round((userStats.correctPredictions / userStats.totalPredictions) * 100)

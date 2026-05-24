@@ -443,7 +443,7 @@ export async function fetchUserPredictions(address, count) {
       functionName: 'getUserPredictions',
       args: [address, BigInt(count)],
     });
-    return ids.map(Number);
+    return ids.map((id) => ({ id: Number(id) }));
   } catch (err) {
     console.error('[data-live] fetchUserPredictions failed:', err);
     return [];
