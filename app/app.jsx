@@ -7,7 +7,7 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "showMarketStrip": true,
   "showAmbientGlow": true,
   "showDottedBg": true,
-  "openModalOnLaunch": true,
+  "openModalOnLaunch": false,
   "animationSpeed": 1
 }/*EDITMODE-END*/;
 
