@@ -179,8 +179,8 @@ const heartbeatOracleAbi = [
     name:            "getHistory",
     type:            "function",
     stateMutability: "view",
-    inputs:          [],
-    outputs: [{ name: "", type: "tuple[]", components: [
+    inputs:          [{ name: "count", type: "uint256" }],
+    outputs: [{ name: "records", type: "tuple[]", components: [
       { name: "timestamp", type: "uint256" },
       { name: "scanned",   type: "uint8"   },
       { name: "anyPosted", type: "bool"    },
@@ -524,9 +524,10 @@ export async function submitAgentFeedback(): Promise<void> {
       address:      HEARTBEAT_ORACLE_ADDRESS,
       abi:          heartbeatOracleAbi,
       functionName: "getHistory",
+      args:         [12n],
     });
 
-    const last12      = history.slice(-12);
+    const last12      = history;
     const uptimeValue = BigInt(Math.round((last12.length / 12) * 10000));
     const uptimeHash  = keccak256(toHex(`uptime-${AGENT_ID}-${Date.now()}`));
 
