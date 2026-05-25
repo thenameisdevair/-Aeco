@@ -575,6 +575,8 @@ export async function recordHeartbeat(
       abi:          heartbeatOracleAbi,
       functionName: "recordHeartbeat",
       nonce,
+      maxFeePerGas:         2000000000000n,
+      maxPriorityFeePerGas: 2000000000000n,
       args:         [BigInt(subjectsScanned), significantChange, statusMessage],
     });
 
