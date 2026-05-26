@@ -477,7 +477,7 @@ export async function submitAgentFeedback(): Promise<void> {
 
     let successRateValue = 10000n; // default 100.00% if no predictions yet
     if (totalNum > 0) {
-      const start = Math.max(1, totalNum - 19);
+      const start = Math.max(1, totalNum - 4); // last 5 only
       let correct  = 0;
       let resolved = 0;
       for (let id = totalNum; id >= start; id--) {
