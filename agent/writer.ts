@@ -479,7 +479,7 @@ export async function submitAgentFeedback(): Promise<void> {
     const oneDayAgo = BigInt(Math.floor(Date.now() / 1000) - 86400);
     let correct = 0;
     let resolved = 0;
-    const start = 1;
+    const start = Math.max(1, totalNum - 99);
 
     for (let id = totalNum; id >= start; id--) {
       const pred = await publicClient.readContract({
