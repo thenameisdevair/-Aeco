@@ -494,12 +494,13 @@ export async function submitAgentFeedback(): Promise<void> {
       if (pred.correct) correct++;
     }
 
+    // successRate — only if fresh resolutions exist
     if (resolved === 0) {
       console.log('[feedback] No fresh resolutions in last 24hrs — skipping successRate');
     } else {
       const successRateValue = BigInt(Math.round((correct / resolved) * 10000));
       const successHash = keccak256(toHex(`successRate-${AGENT_ID}-${Date.now()}`));
-      let nonce = await publicClient.getTransactionCount({
+      const nonce = await publicClient.getTransactionCount({
         address: deployerAccount.address,
         blockTag: 'pending',
       });
@@ -521,36 +522,39 @@ export async function submitAgentFeedback(): Promise<void> {
         ],
       });
       console.log(`[feedback] successRate submitted — ${successRateValue / 100n}.${(successRateValue % 100n).toString().padStart(2, '0')}% | tx ${tx1}`);
-      nonce++;
-
-      // uptime after successRate
-      const history = await publicClient.readContract({
-        address: HEARTBEAT_ORACLE_ADDRESS as Address,
-        abi: heartbeatOracleAbi,
-        functionName: 'getHistory',
-        args: [12n],
-      });
-      const uptimeValue = BigInt(Math.round((history.length / 12) * 10000));
-      const uptimeHash = keccak256(toHex(`uptime-${AGENT_ID}-${Date.now()}`));
-
-      const tx2 = await deployerClient.writeContract({
-        address: REPUTATION_REGISTRY,
-        abi: reputationAbi,
-        functionName: 'giveFeedback',
-        nonce,
-        args: [
-          AGENT_ID,
-          uptimeValue,
-          2n,
-          'uptime',
-          '',
-          'https://aeco-eight.vercel.app',
-          '',
-          uptimeHash,
-        ],
-      });
-      console.log(`[feedback] uptime submitted — ${history.length}/12 cycles | tx ${tx2}`);
     }
+
+    // uptime — always submits every cycle
+    const history = await publicClient.readContract({
+      address: HEARTBEAT_ORACLE_ADDRESS as Address,
+      abi: heartbeatOracleAbi,
+      functionName: 'getHistory',
+      args: [12n],
+    });
+    const uptimeValue = BigInt(Math.round((history.length / 12) * 10000));
+    const uptimeHash = keccak256(toHex(`uptime-${AGENT_ID}-${Date.now()}`));
+    const uptimeNonce = await publicClient.getTransactionCount({
+      address: deployerAccount.address,
+      blockTag: 'pending',
+    });
+
+    const tx2 = await deployerClient.writeContract({
+      address: REPUTATION_REGISTRY,
+      abi: reputationAbi,
+      functionName: 'giveFeedback',
+      nonce: uptimeNonce,
+      args: [
+        AGENT_ID,
+        uptimeValue,
+        2n,
+        'uptime',
+        '',
+        'https://aeco-eight.vercel.app',
+        '',
+        uptimeHash,
+      ],
+    });
+    console.log(`[feedback] uptime submitted — ${history.length}/12 cycles | tx ${tx2}`);
 
   } catch (err) {
     console.error("[feedback] submitAgentFeedback failed:", err);
