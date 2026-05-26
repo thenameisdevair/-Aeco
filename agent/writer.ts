@@ -422,16 +422,17 @@ export async function resolveExpiredPredictions(): Promise<void> {
       if (pred.resolved) continue;
       if (pred.resolveAfterTimestamp > nowSeconds) continue;
 
-      const nonce = await publicClient.getTransactionCount({ address: agentAccount.address, blockTag: "pending" });
       const txHash = await walletClient.writeContract({
-        address:      PREDICTION_GAME_ADDRESS,
-        abi:          predictionGameAbi,
-        functionName: "resolvePrediction",
-        nonce,
-        args:         [BigInt(id)],
+        address:             PREDICTION_GAME_ADDRESS,
+        abi:                 predictionGameAbi,
+        functionName:        "resolvePrediction",
+        maxFeePerGas:         2000000000000n,
+        maxPriorityFeePerGas: 2000000000000n,
+        args:                [BigInt(id)],
       });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
 
-      console.log(`[writer] resolvePrediction #${id} | tx ${txHash}`);
+      console.log(`[writer] resolvePrediction #${id} | tx ${txHash} | status ${receipt.status}`);
     } catch (err) {
       console.error(`[writer] resolvePrediction #${id} failed:`, err);
     }
