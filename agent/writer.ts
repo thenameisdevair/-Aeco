@@ -475,81 +475,82 @@ export async function submitAgentFeedback(): Promise<void> {
     });
     const totalNum = Number(total);
 
-    let successRateValue = 10000n; // default 100.00% if no predictions yet
-    if (totalNum > 0) {
-      const start = Math.max(1, totalNum - 4); // last 5 only
-      let correct  = 0;
-      let resolved = 0;
-      for (let id = totalNum; id >= start; id--) {
-        const pred = await publicClient.readContract({
-          address:      PREDICTION_GAME_ADDRESS,
-          abi:          predictionGameAbi,
-          functionName: "getPrediction",
-          args:         [BigInt(id)],
-        });
-        if (!pred.resolved) continue;
-        resolved++;
-        if (pred.correct) correct++;
-      }
-      if (resolved > 0) {
-        successRateValue = BigInt(Math.round((correct / resolved) * 10000));
-      }
+    // Only count predictions resolved in the last 24hrs
+    const oneDayAgo = BigInt(Math.floor(Date.now() / 1000) - 86400);
+    let correct = 0;
+    let resolved = 0;
+    const start = 1;
+
+    for (let id = totalNum; id >= start; id--) {
+      const pred = await publicClient.readContract({
+        address: PREDICTION_GAME_ADDRESS,
+        abi: predictionGameAbi,
+        functionName: 'getPrediction',
+        args: [BigInt(id)],
+      });
+      if (!pred.resolved) continue;
+      if (pred.resolveAfterTimestamp < oneDayAgo) continue; // skip old
+      resolved++;
+      if (pred.correct) correct++;
     }
 
-    const successHash = keccak256(toHex(`successRate-${AGENT_ID}-${Date.now()}`));
-    let nonce = await publicClient.getTransactionCount({
-      address:  deployerAccount.address,
-      blockTag: "pending",
-    });
+    if (resolved === 0) {
+      console.log('[feedback] No fresh resolutions in last 24hrs — skipping successRate');
+    } else {
+      const successRateValue = BigInt(Math.round((correct / resolved) * 10000));
+      const successHash = keccak256(toHex(`successRate-${AGENT_ID}-${Date.now()}`));
+      let nonce = await publicClient.getTransactionCount({
+        address: deployerAccount.address,
+        blockTag: 'pending',
+      });
 
-    const tx1 = await deployerClient.writeContract({
-      address:      REPUTATION_REGISTRY,
-      abi:          reputationAbi,
-      functionName: "giveFeedback",
-      nonce,
-      args: [
-        AGENT_ID,
-        successRateValue,
-        2n,
-        "successRate",
-        "",
-        "https://aeco-eight.vercel.app",
-        "",
-        successHash,
-      ],
-    });
-    console.log(`[feedback] successRate submitted — ${successRateValue / 100n}.${(successRateValue % 100n).toString().padStart(2, "0")}% | tx ${tx1}`);
+      const tx1 = await deployerClient.writeContract({
+        address: REPUTATION_REGISTRY,
+        abi: reputationAbi,
+        functionName: 'giveFeedback',
+        nonce,
+        args: [
+          AGENT_ID,
+          successRateValue,
+          2n,
+          'successRate',
+          '',
+          'https://aeco-eight.vercel.app',
+          '',
+          successHash,
+        ],
+      });
+      console.log(`[feedback] successRate submitted — ${successRateValue / 100n}.${(successRateValue % 100n).toString().padStart(2, '0')}% | tx ${tx1}`);
+      nonce++;
 
-    // ── uptime ───────────────────────────────────────────────────────────────
-    const history = await publicClient.readContract({
-      address:      HEARTBEAT_ORACLE_ADDRESS,
-      abi:          heartbeatOracleAbi,
-      functionName: "getHistory",
-      args:         [12n],
-    });
+      // uptime after successRate
+      const history = await publicClient.readContract({
+        address: HEARTBEAT_ORACLE_ADDRESS as Address,
+        abi: heartbeatOracleAbi,
+        functionName: 'getHistory',
+        args: [12n],
+      });
+      const uptimeValue = BigInt(Math.round((history.length / 12) * 10000));
+      const uptimeHash = keccak256(toHex(`uptime-${AGENT_ID}-${Date.now()}`));
 
-    const last12      = history;
-    const uptimeValue = BigInt(Math.round((last12.length / 12) * 10000));
-    const uptimeHash  = keccak256(toHex(`uptime-${AGENT_ID}-${Date.now()}`));
-
-    nonce++;
-    const tx2 = await deployerClient.writeContract({
-      address:      REPUTATION_REGISTRY,
-      abi:          reputationAbi,
-      functionName: "giveFeedback",
-      nonce,
-      args: [
-        AGENT_ID,
-        uptimeValue,
-        2n,
-        "uptime",
-        "",
-        "https://aeco-eight.vercel.app",
-        "",
-        uptimeHash,
-      ],
-    });
-    console.log(`[feedback] uptime submitted — ${last12.length}/12 cycles (${uptimeValue / 100n}.${(uptimeValue % 100n).toString().padStart(2, "0")}%) | tx ${tx2}`);
+      const tx2 = await deployerClient.writeContract({
+        address: REPUTATION_REGISTRY,
+        abi: reputationAbi,
+        functionName: 'giveFeedback',
+        nonce,
+        args: [
+          AGENT_ID,
+          uptimeValue,
+          2n,
+          'uptime',
+          '',
+          'https://aeco-eight.vercel.app',
+          '',
+          uptimeHash,
+        ],
+      });
+      console.log(`[feedback] uptime submitted — ${history.length}/12 cycles | tx ${tx2}`);
+    }
 
   } catch (err) {
     console.error("[feedback] submitAgentFeedback failed:", err);
