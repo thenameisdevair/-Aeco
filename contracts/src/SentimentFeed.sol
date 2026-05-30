@@ -55,6 +55,15 @@ contract SentimentFeed is Initializable, AccessControlUpgradeable, UUPSUpgradeab
      * @param deltaFromLast Change in score relative to the immediately preceding record.
      *                      Positive = improvement, negative = deterioration.
      * @param agentVersion  Semantic version string of the AI agent that produced this record.
+     * @param socialScore   Raw Grok social sentiment score (0–100). Mirrors `score` for
+     *                      Grok-only subjects; separated here so hybrid subjects expose
+     *                      both components independently.
+     * @param nansenFlow    Net smart-money flow in USD over the oracle cycle window,
+     *                      computed as smartTraderFlow + topPnlFlow + 0.5 × whaleFlow
+     *                      from Nansen's flow-intelligence endpoint. Positive = net
+     *                      accumulation by skilled wallets. Zero for display-only subjects.
+     * @param divergenceFlag True when Grok social signal and Nansen flow direction disagree.
+     *                      Always false for display-only (Grok-only) subjects.
      */
     struct SentimentRecord {
         uint256 subjectId;
@@ -66,6 +75,19 @@ contract SentimentFeed is Initializable, AccessControlUpgradeable, UUPSUpgradeab
         uint256 timestamp;
         int8    deltaFromLast;
         string  agentVersion;
+        /// @notice Raw Grok social sentiment score (0–100). Mirrors `score` for
+        ///         Grok-only subjects; separated here so hybrid subjects expose
+        ///         both components independently.
+        uint8   socialScore;
+        /// @notice Net smart-money flow in USD over the oracle cycle window,
+        ///         computed as smartTraderFlow + topPnlFlow + 0.5 × whaleFlow
+        ///         from Nansen's flow-intelligence endpoint. Positive = net
+        ///         accumulation by skilled wallets. Zero for display-only subjects.
+        int256  nansenFlow;
+        /// @notice True when Grok social signal and Nansen flow direction disagree.
+        ///         e.g. social bullish (signal=1) but nansenFlow < 0, or vice versa.
+        ///         Always false for display-only (Grok-only) subjects.
+        bool    divergenceFlag;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -74,6 +96,9 @@ contract SentimentFeed is Initializable, AccessControlUpgradeable, UUPSUpgradeab
 
     /// @notice Maximum number of historical records retained per subject.
     uint256 public constant MAX_HISTORY = 50;
+
+    /// @notice Semantic version of this implementation contract.
+    string public constant CONTRACT_VERSION = "2.0.0";
 
     // ─────────────────────────────────────────────────────────────────────────
     // State
@@ -229,8 +254,11 @@ contract SentimentFeed is Initializable, AccessControlUpgradeable, UUPSUpgradeab
      * @param confidence    Agent confidence in this reading, [0, 100].
      * @param summary       Free-form AI-generated narrative explanation.
      * @param sourceType    Data source descriptor (e.g. "twitter", "news").
-     * @param deltaFromLast Score delta relative to the previous record for this subject.
-     * @param agentVersion  Semantic version of the agent that produced this record.
+     * @param deltaFromLast  Score delta relative to the previous record for this subject.
+     * @param agentVersion   Semantic version of the agent that produced this record.
+     * @param socialScore    Raw Grok social score (0–100); mirrors `score` for Grok-only subjects.
+     * @param nansenFlow     Signed USD net smart-money flow (0 for display-only subjects).
+     * @param divergenceFlag True when social and Nansen flow signals disagree.
      */
     function postSentiment(
         uint256         subjectId,
@@ -240,7 +268,10 @@ contract SentimentFeed is Initializable, AccessControlUpgradeable, UUPSUpgradeab
         string calldata summary,
         string calldata sourceType,
         int8            deltaFromLast,
-        string calldata agentVersion
+        string calldata agentVersion,
+        uint8           socialScore,
+        int256          nansenFlow,
+        bool            divergenceFlag
     )
         external
         onlyRole(AGENT_ROLE)
@@ -260,7 +291,10 @@ contract SentimentFeed is Initializable, AccessControlUpgradeable, UUPSUpgradeab
             sourceType:    sourceType,
             timestamp:     block.timestamp,
             deltaFromLast: deltaFromLast,
-            agentVersion:  agentVersion
+            agentVersion:  agentVersion,
+            socialScore:   socialScore,
+            nansenFlow:    nansenFlow,
+            divergenceFlag: divergenceFlag
         });
 
         latestRecord[subjectId] = record;
