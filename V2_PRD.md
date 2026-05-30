@@ -13,6 +13,7 @@ The original V2 PRD described a hybrid Grok + Nansen sentiment oracle with a gen
 1. **Prediction markets resolve on sentiment, not price (Option B).** The bet is "will the market's read on this asset move up or down," not "will the price go up." The oracle is the referee.
 2. **Resolution is anchored on Nansen netflow only — a hard, deterministic number.** Grok is display-only and never decides who wins money. This solves the LLM-determinism problem that would otherwise make sentiment-resolved markets unresolvable.
 3. **Subjects split into two types.** Prediction-enabled subjects (tokens trackable by Nansen Smart Money) and display-only subjects (narratives, people, topics, and Celo-native assets Nansen can't track).
+4. **Phasing: prediction markets are deferred to post-hackathon.** For the June 15 hackathon, scope is the hybrid oracle + divergence display + x402 API. The sentiment-resolved prediction market is deferred to post-hackathon (targeting the Prezenti Frontier grant, June 30+). Live API validation confirmed that the flow signal operates on daily-scale aggregates — too slow for high-frequency markets within a hackathon window. The hybrid oracle work is the exact foundation the prediction market will later require. Nothing is wasted.
 
 ---
 
@@ -56,9 +57,11 @@ No Nansen coverage. Grok-only sentiment. **No prediction markets.** Shown on the
 
 ## 4. The composite score (prediction-enabled subjects)
 
-Display composite (what users see): tunable, starting point 60% Grok social + 30% Nansen TGM Flows signal + 10% divergence factor.
+Display composite (what users see): tunable, starting point 60% Grok social + 30% Nansen TGM Flow Intelligence signal + 10% divergence factor.
 
-**Resolution value (what settles bets): Nansen TGM Flows endpoint (/tgm/flows), per-token, smart-money label filter — inflows-minus-outflows over the market window for the subject's token.** Independent of the display composite.
+**Resolution value (what settles bets): Nansen TGM Flow Intelligence endpoint (/api/beta/tgm/flow-intelligence), per-token, smart-money label filter — inflows-minus-outflows over the market window for the subject's token.** Independent of the display composite.
+
+**Flow signal formula:** `flowSignal = smartTraderFlow + topPnlFlow + (0.5 × whaleFlow)`. Excludes `exchangeFlow` (CEX plumbing, not sentiment) and `freshWalletsFlow` (noise). This is the deterministic smart-money signal used for both the display composite and market resolution.
 
 ### Divergence — the premium signal
 When Grok social and Nansen netflow disagree (social bullish, smart money exiting, or vice versa), that is the alpha. Nobody else computes it. Surfaced in the UI and sold as a premium x402 endpoint.
@@ -68,9 +71,9 @@ When Grok social and Nansen netflow disagree (social bullish, smart money exitin
 ## 5. Prediction market mechanics
 
 ### Lifecycle
-1. **Open:** A market is created for a prediction-enabled subject. An **open snapshot** of the Nansen TGM Flows baseline (inflows-minus-outflows from /tgm/flows) is frozen on-chain with a timestamp.
+1. **Open:** A market is created for a prediction-enabled subject. An **open snapshot** of the Nansen TGM Flow Intelligence baseline (inflows-minus-outflows from /api/beta/tgm/flow-intelligence) is frozen on-chain with a timestamp.
 2. **Betting window:** Users stake on UP or DOWN (sentiment direction).
-3. **Close:** At `resolveAfterTimestamp`, a **close snapshot** of TGM Flows (inflows-minus-outflows) is taken and frozen on-chain.
+3. **Close:** At `resolveAfterTimestamp`, a **close snapshot** of TGM Flow Intelligence (inflows-minus-outflows) is taken and frozen on-chain.
 4. **Resolve:** Compare close vs open.
 
 ### Resolution rule
@@ -87,7 +90,11 @@ else:                              -> DOWN wins
 - Sub-threshold moves void and return stakes — protects users from betting on noise.
 
 ### Snapshots must be immutable
-Open and close TGM Flows values (inflows-minus-outflows USD) are written on-chain and never mutable. The resolution must be reproducible by any third party from on-chain data + Nansen's public API. This is the trust core of the product.
+Open and close TGM Flow Intelligence values (inflows-minus-outflows USD) are written on-chain and never mutable. The resolution must be reproducible by any third party from on-chain data + Nansen's public API. This is the trust core of the product.
+
+### Data constraints (confirmed from live API)
+- Smart-money flow on major assets is slow and coarse — small wallet counts, daily-scale aggregates. **Prediction market windows must be 1 day minimum, not 2 hours.** A sub-day window will not produce meaningful signal.
+- The endpoint returns one aggregate flow figure per timeframe, not a time series. Resolution therefore queries flow over the full market window once at close — not a delta between two separately frozen snapshots. At resolution time the agent calls `/api/beta/tgm/flow-intelligence` with `windowStart → resolveAfterTimestamp` and applies the resolution rule directly to the single aggregate `flowSignal` returned.
 
 ---
 
@@ -112,7 +119,7 @@ Four endpoints. Three shippable now, one gated on persistence.
 - **AECToken / HeartbeatOracle:** No structural change required for the core oracle. Staking/burn mechanics (PRD §8) are post-hackathon.
 
 ### Agent
-- New `agent/nansen.ts` module — calls `/tgm/flows` (Nansen TGM Flows endpoint) per prediction-enabled subject (1 credit/call). Requires chain + tokenAddress per subject.
+- New `agent/nansen.ts` module — calls `/api/beta/tgm/flow-intelligence` (Nansen TGM Flow Intelligence endpoint) per prediction-enabled subject (1 credit/call). Requires chain + tokenAddress per subject.
 - `agent/index.ts` — extend the cycle: for prediction-enabled subjects, fetch netflow + compute composite; for display-only, Grok only (unchanged).
 - `agent/writer.ts` — `postSentiment` ABI/call must include new fields after the contract upgrade.
 
@@ -126,7 +133,7 @@ Four endpoints. Three shippable now, one gated on persistence.
 
 ## 8. Credit budget (Nansen, Pro plan)
 
-- TGM Flows = 1 credit/call. Prediction-enabled subjects only.
+- TGM Flow Intelligence = 1 credit/call. Prediction-enabled subjects only.
 - At ~5 prediction subjects × 12 cycles/day = ~60 credits/day → 50,000 credits ≈ 830 days runway.
 - Adding more prediction subjects scales linearly. Top-up: $0.001/credit.
 - Display-only subjects cost 0 Nansen credits (Grok only).
@@ -159,7 +166,7 @@ Three tracks: Best Agent on Celo, Most On-chain Transactions, Highest 8004scan R
 ## 11. Open items to resolve before/during build
 
 - Exact threshold value (default 5 points, tune from backtest)
-- How the raw inflow-minus-outflow USD figure from TGM Flows maps to a 0–100 signal (normalization function — rolling average across tracked tokens, deviation mapped to 0–100)
+- How the raw inflow-minus-outflow USD figure from TGM Flow Intelligence maps to a 0–100 signal (normalization function — rolling average across tracked tokens, deviation mapped to 0–100)
 - Final list of L2 prediction subjects (confirm which have usable Nansen coverage)
 - Persistence solution choice (Postgres? hosted SQLite? other)
 - PredictionGame: in-place UUPS upgrade vs new V2 contract (leaning new contract)
