@@ -16,6 +16,7 @@
 
 import { fetchPrices }          from "./prices";
 import { callGrok }             from "./grok";
+import { getFlowSignal }        from "./nansen";
 import { buildAssetPrompt }     from "./prompts/assetPrompt";
 import { buildPersonPrompt }    from "./prompts/personPrompt";
 import { buildNarrativePrompt } from "./prompts/narrativePrompt";
@@ -51,17 +52,25 @@ interface Subject {
   id:       number;
   name:     string;
   category: number;
+  nansen?: {
+    chain:        string;
+    tokenAddress: string;
+  };
 }
 
 const SUBJECTS: Subject[] = [
-  { id: 1, name: "CELO",                    category: CATEGORY.CRYPTO_ASSET },
-  { id: 2, name: "cUSD",                    category: CATEGORY.CRYPTO_ASSET },
-  { id: 3, name: "cKES",                    category: CATEGORY.CRYPTO_ASSET },
-  { id: 4, name: "BTC",                     category: CATEGORY.CRYPTO_ASSET },
-  { id: 5, name: "ETH",                     category: CATEGORY.CRYPTO_ASSET },
-  { id: 6, name: "Vitalik Buterin",          category: CATEGORY.PERSON       },
-  { id: 7, name: "Stablecoin Regulation",    category: CATEGORY.NARRATIVE    },
-  { id: 8, name: "Africa Crypto Adoption",   category: CATEGORY.NARRATIVE    },
+  { id: 1, name: "CELO",                  category: CATEGORY.CRYPTO_ASSET },
+  { id: 2, name: "cUSD",                  category: CATEGORY.CRYPTO_ASSET },
+  { id: 3, name: "cKES",                  category: CATEGORY.CRYPTO_ASSET },
+  { id: 4, name: "BTC",                   category: CATEGORY.CRYPTO_ASSET,
+    nansen: { chain: "ethereum", tokenAddress: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599" } },
+  { id: 5, name: "ETH",                   category: CATEGORY.CRYPTO_ASSET,
+    nansen: { chain: "ethereum", tokenAddress: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2" } },
+  { id: 6, name: "Vitalik Buterin",        category: CATEGORY.PERSON       },
+  { id: 7, name: "Stablecoin Regulation",  category: CATEGORY.NARRATIVE    },
+  { id: 8, name: "Africa Crypto Adoption", category: CATEGORY.NARRATIVE    },
+  { id: 9, name: "SOL",                   category: CATEGORY.CRYPTO_ASSET,
+    nansen: { chain: "solana", tokenAddress: "So11111111111111111111111111111111111111112" } },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -147,6 +156,43 @@ export async function runCycle(): Promise<void> {
     );
     console.log(`[agent]   Summary: "${summary}"`);
 
+    // ── 2b-2. Fetch Nansen flow signal (hybrid subjects only) ──────────────
+    let flowSignal: number | null = null;
+    let sourceType_hybrid = sourceType; // will override sourceType on chain if hybrid
+
+    if (subject.nansen) {
+      flowSignal = await getFlowSignal(
+        subject.nansen.chain,
+        subject.nansen.tokenAddress,
+        "1d"
+      );
+
+      if (flowSignal !== null) {
+        sourceType_hybrid = "hybrid:grok+nansen";
+        console.log(
+          `[agent]   Nansen flowSignal for "${subject.name}": ${flowSignal.toFixed(2)} USD net`
+        );
+
+        // Divergence detection — log when social and smart-money disagree.
+        const socialBullish  = signal === "bullish";
+        const socialBearish  = signal === "bearish";
+        const nansenBullish  = flowSignal > 0;
+        const nansenBearish  = flowSignal < 0;
+
+        if ((socialBullish && nansenBearish) || (socialBearish && nansenBullish)) {
+          console.log(
+            `[agent]   ⚠ DIVERGENCE detected for "${subject.name}" — ` +
+            `social: ${socialBullish ? "bullish" : "bearish"}, ` +
+            `nansen: ${nansenBullish ? "bullish" : "bearish"}`
+          );
+        }
+      } else {
+        console.log(
+          `[agent]   Nansen returned null for "${subject.name}" — posting Grok-only.`
+        );
+      }
+    }
+
     // ── 2c. Read last on-chain record ──────────────────────────────────────
     const lastRecord = await getLastRecord(subject.id);
 
@@ -183,7 +229,7 @@ export async function runCycle(): Promise<void> {
       signal,
       confidence,
       summary,
-      sourceType,
+      sourceType_hybrid,  // ← was: sourceType
       deltaFromLast,
       AGENT_VERSION,
     );
