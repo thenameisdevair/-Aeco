@@ -56,9 +56,9 @@ No Nansen coverage. Grok-only sentiment. **No prediction markets.** Shown on the
 
 ## 4. The composite score (prediction-enabled subjects)
 
-Display composite (what users see): tunable, starting point 60% Grok social + 30% Nansen netflow signal + 10% divergence factor.
+Display composite (what users see): tunable, starting point 60% Grok social + 30% Nansen TGM Flows signal + 10% divergence factor.
 
-**Resolution value (what settles bets): Nansen netflow direction only.** Independent of the display composite.
+**Resolution value (what settles bets): Nansen TGM Flows endpoint (/tgm/flows), per-token, smart-money label filter — inflows-minus-outflows over the market window for the subject's token.** Independent of the display composite.
 
 ### Divergence — the premium signal
 When Grok social and Nansen netflow disagree (social bullish, smart money exiting, or vice versa), that is the alpha. Nobody else computes it. Surfaced in the UI and sold as a premium x402 endpoint.
@@ -68,9 +68,9 @@ When Grok social and Nansen netflow disagree (social bullish, smart money exitin
 ## 5. Prediction market mechanics
 
 ### Lifecycle
-1. **Open:** A market is created for a prediction-enabled subject. An **open snapshot** of the Nansen netflow baseline is frozen on-chain with a timestamp.
+1. **Open:** A market is created for a prediction-enabled subject. An **open snapshot** of the Nansen TGM Flows baseline (inflows-minus-outflows from /tgm/flows) is frozen on-chain with a timestamp.
 2. **Betting window:** Users stake on UP or DOWN (sentiment direction).
-3. **Close:** At `resolveAfterTimestamp`, a **close snapshot** of netflow is taken and frozen on-chain.
+3. **Close:** At `resolveAfterTimestamp`, a **close snapshot** of TGM Flows (inflows-minus-outflows) is taken and frozen on-chain.
 4. **Resolve:** Compare close vs open.
 
 ### Resolution rule
@@ -87,7 +87,7 @@ else:                              -> DOWN wins
 - Sub-threshold moves void and return stakes — protects users from betting on noise.
 
 ### Snapshots must be immutable
-Open and close netflow values are written on-chain and never mutable. The resolution must be reproducible by any third party from on-chain data + Nansen's public API. This is the trust core of the product.
+Open and close TGM Flows values (inflows-minus-outflows USD) are written on-chain and never mutable. The resolution must be reproducible by any third party from on-chain data + Nansen's public API. This is the trust core of the product.
 
 ---
 
@@ -112,7 +112,7 @@ Four endpoints. Three shippable now, one gated on persistence.
 - **AECToken / HeartbeatOracle:** No structural change required for the core oracle. Staking/burn mechanics (PRD §8) are post-hackathon.
 
 ### Agent
-- New `agent/nansen.ts` module — calls Smart Money Netflow endpoint (5 credits/call, Pro plan). Requires token contract addresses per prediction-enabled subject.
+- New `agent/nansen.ts` module — calls `/tgm/flows` (Nansen TGM Flows endpoint) per prediction-enabled subject (1 credit/call). Requires chain + tokenAddress per subject.
 - `agent/index.ts` — extend the cycle: for prediction-enabled subjects, fetch netflow + compute composite; for display-only, Grok only (unchanged).
 - `agent/writer.ts` — `postSentiment` ABI/call must include new fields after the contract upgrade.
 
@@ -126,8 +126,8 @@ Four endpoints. Three shippable now, one gated on persistence.
 
 ## 8. Credit budget (Nansen, Pro plan)
 
-- Netflow = 5 credits/call. Prediction-enabled subjects only.
-- At ~5 prediction subjects × 12 cycles/day = ~300 credits/day → 50,000 credits ≈ 166 days runway.
+- TGM Flows = 1 credit/call. Prediction-enabled subjects only.
+- At ~5 prediction subjects × 12 cycles/day = ~60 credits/day → 50,000 credits ≈ 830 days runway.
 - Adding more prediction subjects scales linearly. Top-up: $0.001/credit.
 - Display-only subjects cost 0 Nansen credits (Grok only).
 
@@ -159,7 +159,7 @@ Three tracks: Best Agent on Celo, Most On-chain Transactions, Highest 8004scan R
 ## 11. Open items to resolve before/during build
 
 - Exact threshold value (default 5 points, tune from backtest)
-- How the raw netflow dollar figure maps to a 0–100 signal (normalization function — rolling average across tracked tokens, deviation mapped to 0–100)
+- How the raw inflow-minus-outflow USD figure from TGM Flows maps to a 0–100 signal (normalization function — rolling average across tracked tokens, deviation mapped to 0–100)
 - Final list of L2 prediction subjects (confirm which have usable Nansen coverage)
 - Persistence solution choice (Postgres? hosted SQLite? other)
 - PredictionGame: in-place UUPS upgrade vs new V2 contract (leaning new contract)
