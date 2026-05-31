@@ -193,6 +193,11 @@ export async function runCycle(): Promise<void> {
       }
     }
 
+    const divergenceFlag = flowSignal !== null && (
+      (signal === "bullish" && flowSignal < 0) ||
+      (signal === "bearish" && flowSignal > 0)
+    );
+
     // ── 2c. Read last on-chain record ──────────────────────────────────────
     const lastRecord = await getLastRecord(subject.id);
 
@@ -232,6 +237,9 @@ export async function runCycle(): Promise<void> {
       sourceType_hybrid,  // ← was: sourceType
       deltaFromLast,
       AGENT_VERSION,
+      score,                                                        // socialScore
+      flowSignal !== null ? BigInt(Math.round(flowSignal)) : 0n,   // nansenFlow
+      divergenceFlag,                                               // divergenceFlag
     );
 
     if (posted) {

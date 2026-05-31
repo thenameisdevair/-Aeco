@@ -139,8 +139,11 @@ const sentimentFeedAbi = [
           { name: "summary",       type: "string"  },
           { name: "sourceType",    type: "string"  },
           { name: "timestamp",     type: "uint256" },
-          { name: "deltaFromLast", type: "int8"    },
-          { name: "agentVersion",  type: "string"  },
+          { name: "deltaFromLast",  type: "int8"    },
+          { name: "agentVersion",   type: "string"  },
+          { name: "socialScore",    type: "uint8"   },
+          { name: "nansenFlow",     type: "int256"  },
+          { name: "divergenceFlag", type: "bool"    },
         ],
       },
     ],
@@ -156,8 +159,11 @@ const sentimentFeedAbi = [
       { name: "confidence",    type: "uint8"   },
       { name: "summary",       type: "string"  },
       { name: "sourceType",    type: "string"  },
-      { name: "deltaFromLast", type: "int8"    },
-      { name: "agentVersion",  type: "string"  },
+      { name: "deltaFromLast",  type: "int8"    },
+      { name: "agentVersion",   type: "string"  },
+      { name: "socialScore",    type: "uint8"   },
+      { name: "nansenFlow",     type: "int256"  },
+      { name: "divergenceFlag", type: "bool"    },
     ],
     outputs: [],
   },
@@ -347,8 +353,11 @@ export function shouldPost(
  * @param confidence   - Agent confidence 0–100.
  * @param summary      - Plain-English summary ≤ 20 words.
  * @param sourceType   - Data source descriptor.
- * @param deltaFromLast - Score change vs previous record (may be negative).
- * @param agentVersion - Semantic version of the agent.
+ * @param deltaFromLast  - Score change vs previous record (may be negative).
+ * @param agentVersion   - Semantic version of the agent.
+ * @param socialScore    - Grok social score 0–100; mirrors score for Grok-only subjects.
+ * @param nansenFlow     - Signed USD net smart-money flow; 0n for display-only subjects.
+ * @param divergenceFlag - True when social signal and Nansen flow direction disagree.
  * @returns True on successful broadcast, false on any error.
  */
 export async function postSentiment(
@@ -360,6 +369,9 @@ export async function postSentiment(
   sourceType:    string,
   deltaFromLast: number,
   agentVersion:  string,
+  socialScore:    number,
+  nansenFlow:     bigint,
+  divergenceFlag: boolean,
 ): Promise<boolean> {
   const signalUint8 = SIGNAL_TO_UINT8[signal] ?? 0;
 
@@ -379,6 +391,9 @@ export async function postSentiment(
         sourceType,
         deltaFromLast,
         agentVersion,
+        socialScore,
+        nansenFlow,
+        divergenceFlag,
       ],
     });
 
