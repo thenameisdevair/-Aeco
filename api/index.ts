@@ -19,7 +19,8 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { paymentMiddleware, x402ResourceServer } from "@x402/express";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
-import { HTTPFacilitatorClient } from "@x402/core/server";
+import { facilitator as thirdwebFacilitator } from "thirdweb/x402";
+import { createThirdwebClient } from "thirdweb";
 import { getSentiment, getAllSentiment, getHeartbeats, getDivergence } from "./lib/contracts";
 import { handleFaucet } from "./faucet";
 
@@ -29,8 +30,13 @@ import { handleFaucet } from "./faucet";
 
 const AGENT_WALLET = "0x9600e1E61c5a412132f683b4DF591669Be7b1EE2" as const;
 
-const facilitatorClient = new HTTPFacilitatorClient({
-  url: "https://facilitator.x402.org",
+const thirdwebClient = createThirdwebClient({
+  secretKey: process.env["THIRDWEB_SECRET_KEY"] ?? "",
+});
+
+const facilitatorClient = thirdwebFacilitator({
+  client: thirdwebClient,
+  serverWalletAddress: process.env["THIRDWEB_SERVER_WALLET"] ?? "0x2e25b319e6f445c12eaD13727B02B0af7cA55A6d",
 });
 
 const resourceServer = new x402ResourceServer(facilitatorClient)
@@ -206,12 +212,15 @@ app.use((req, _res, next) => {
 
 app.get("/health", (_req: Request, res: Response) => {
   res.json({
-    status:    "ok",
-    agent:     "Aeco Sentiment Oracle",
-    agentId:   9112,
-    version:   "2.0.0",
-    subjects:  9,
-    timestamp: Date.now(),
+    status:         "ok",
+    agent:          "Aeco Sentiment Oracle",
+    agentId:        9112,
+    version:        "2.0.0",
+    subjects:       9,
+    facilitator:    "thirdweb",
+    paymentNetwork: "Celo mainnet (eip155:42220)",
+    dataNetwork:    "Celo mainnet (eip155:42220)",
+    timestamp:      Date.now(),
   });
 });
 
@@ -293,6 +302,7 @@ const PORT = parseInt(process.env["PORT"] ?? "3000", 10);
 (async () => {
   await resourceServer.initialize();
   console.log("[api] x402 resource server initialized");
+  console.log(`[api] x402 facilitator: thirdweb | network: eip155:42220 | payTo: ${AGENT_WALLET}`);
 
   app.listen(PORT, () => {
     console.log(`[api] Aeco oracle API running on port ${PORT}`);
