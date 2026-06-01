@@ -1,7 +1,7 @@
 /**
  * Fetches current market data for tracked crypto assets from CryptoCompare.
  *
- * Only CELO, BTC, and ETH are fetched because cUSD and cKES are USD-pegged
+ * Only CELO, BTC, ETH, and SOL are fetched because cUSD and cKES are USD-pegged
  * stablecoins and cKES is not listed on CryptoCompare's PRICEMULTIFULL endpoint.
  * Callers that need price data for stablecoins should supply hardcoded values.
  *
@@ -24,7 +24,7 @@ export interface PriceData {
 }
 
 /** Symbols requested from CryptoCompare in a single call. */
-const SYMBOLS = ["CELO", "BTC", "ETH"] as const;
+const SYMBOLS = ["CELO", "BTC", "ETH", "SOL"] as const;
 type Symbol = (typeof SYMBOLS)[number];
 
 const CRYPTOCOMPARE_URL =
@@ -82,20 +82,21 @@ function extractPriceData(entry: CryptoCompareRawEntry | undefined): PriceData |
 }
 
 /**
- * Fetches current price data for CELO, BTC, and ETH from CryptoCompare.
+ * Fetches current price data for CELO, BTC, ETH, and SOL from CryptoCompare.
  *
  * Returns a record keyed by symbol. Each value is either a populated PriceData
  * object or null when the symbol's data could not be extracted. The function
  * always returns a complete record for every symbol in SYMBOLS — it never
  * omits a key, so callers can safely index without an existence check.
  *
- * @returns A promise that resolves to `Record<"CELO" | "BTC" | "ETH", PriceData | null>`.
+ * @returns A promise that resolves to `Record<"CELO" | "BTC" | "ETH" | "SOL", PriceData | null>`.
  */
 export async function fetchPrices(): Promise<Record<string, PriceData | null>> {
   const result: Record<string, PriceData | null> = {
     CELO: null,
     BTC:  null,
     ETH:  null,
+    SOL:  null,
   };
 
   let data: CryptoCompareResponse;
