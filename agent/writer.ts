@@ -571,6 +571,10 @@ export async function submitAgentFeedback(nansenSuccessCount: number = 0): Promi
     });
     console.log(`[feedback] uptime submitted — ${history.length}/12 cycles | tx ${tx2}`);
 
+    // Wait for uptime tx to confirm before submitting hybridSignal
+    // to avoid nonce collision on the deployer wallet
+    await publicClient.waitForTransactionReceipt({ hash: tx2 });
+
     // hybridSignal — only submit when Nansen returned live data this cycle
     if (nansenSuccessCount > 0) {
       const hybridValue = BigInt(nansenSuccessCount * 10000);
