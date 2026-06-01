@@ -45,6 +45,9 @@ const sentimentFeedAbi = [
         { name: "timestamp",     type: "uint256" },
         { name: "deltaFromLast", type: "int8"    },
         { name: "agentVersion",  type: "string"  },
+        { name: "socialScore",    type: "uint8"  },
+        { name: "nansenFlow",     type: "int256" },
+        { name: "divergenceFlag", type: "bool"   },
       ],
     }],
   },
@@ -91,6 +94,10 @@ export interface SentimentRecord {
   confidence: number;
   summary:    string;
   sourceType: string;
+  socialScore:    number;
+  nansenFlow:     string;   // serialized as string — bigint doesn't JSON-serialize
+  divergenceFlag: boolean;
+  isHybrid:       boolean;
   timestamp:  number;
   updatedAt:  string;
 }
@@ -131,6 +138,10 @@ export async function getSentiment(subjectId: number): Promise<SentimentRecord |
       confidence: record.confidence,
       summary:    record.summary,
       sourceType: record.sourceType,
+      socialScore:    record.socialScore,
+      nansenFlow:     record.nansenFlow.toString(),
+      divergenceFlag: record.divergenceFlag,
+      isHybrid:       record.sourceType === "hybrid:grok+nansen",
       timestamp:  ts,
       updatedAt:  new Date(ts * 1000).toISOString(),
     };
@@ -146,9 +157,19 @@ export async function getSentiment(subjectId: number): Promise<SentimentRecord |
  */
 export async function getAllSentiment(): Promise<SentimentRecord[]> {
   const results = await Promise.all(
-    [1, 2, 3, 4, 5, 6, 7, 8].map((id) => getSentiment(id))
+    [1, 2, 3, 4, 5, 6, 7, 8, 9].map((id) => getSentiment(id))
   );
   return results.filter((r): r is SentimentRecord => r !== null);
+}
+
+/**
+ * Returns only subjects where social sentiment and Nansen smart-money
+ * flow disagree — the premium divergence signal.
+ * Returns an empty array if no divergences exist right now.
+ */
+export async function getDivergence(): Promise<SentimentRecord[]> {
+  const all = await getAllSentiment();
+  return all.filter(r => r.divergenceFlag && r.isHybrid);
 }
 
 /**

@@ -20,7 +20,7 @@ import rateLimit from "express-rate-limit";
 import { paymentMiddleware, x402ResourceServer } from "@x402/express";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { HTTPFacilitatorClient } from "@x402/core/server";
-import { getSentiment, getAllSentiment, getHeartbeats } from "./lib/contracts";
+import { getSentiment, getAllSentiment, getHeartbeats, getDivergence } from "./lib/contracts";
 import { handleFaucet } from "./faucet";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -55,12 +55,13 @@ const NAME_TO_ID: Record<string, number> = {
   vitalik:    6,
   stablecoin: 7,
   africa:     8,
+  sol:        9,
 };
 
 /** Resolves a route :subject param (number string or name) to an on-chain ID. */
 function resolveSubjectId(param: string): number | null {
   const asNum = parseInt(param, 10);
-  if (!isNaN(asNum) && asNum >= 1 && asNum <= 8) return asNum;
+  if (!isNaN(asNum) && asNum >= 1 && asNum <= 9) return asNum;
 
   const fromName = NAME_TO_ID[param.toLowerCase()];
   return fromName ?? null;
@@ -180,6 +181,14 @@ app.use(
         accepts:     { ...PAID_ACCEPTS, price: "$0.01" },
         description: "Africa Crypto Adoption sentiment",
       },
+      "GET /sentiment/9": {
+        accepts:     { ...PAID_ACCEPTS, price: "$0.01" },
+        description: "SOL sentiment",
+      },
+      "GET /divergence": {
+        accepts:     { ...PAID_ACCEPTS, price: "$0.02" },
+        description: "Subjects where social sentiment and Smart Money flow disagree",
+      },
     },
     resourceServer,
     undefined,
@@ -201,6 +210,7 @@ app.get("/health", (_req: Request, res: Response) => {
     agent:     "Aeco Sentiment Oracle",
     agentId:   9112,
     version:   "2.0.0",
+    subjects:  9,
     timestamp: Date.now(),
   });
 });
@@ -227,6 +237,23 @@ app.get("/sentiment/all", async (_req: Request, res: Response) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[api] /sentiment/all error:", message);
+    res.status(500).json({ error: message });
+  }
+});
+
+// ── GET /divergence — premium divergence signal, $0.02 ───────────────────────
+app.get("/divergence", async (_req: Request, res: Response) => {
+  try {
+    const divergent = await getDivergence();
+    res.json({
+      divergent,
+      count:     divergent.length,
+      updatedAt: new Date().toISOString(),
+      note:      "Subjects where Grok social signal and Nansen Smart Money flow disagree.",
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[api] /divergence error:", message);
     res.status(500).json({ error: message });
   }
 });
@@ -265,7 +292,7 @@ const PORT = parseInt(process.env["PORT"] ?? "3000", 10);
 app.listen(PORT, () => {
   console.log(`[api] Aeco oracle API running on port ${PORT}`);
   console.log(`[api] Free:  GET /health, /heartbeat, /sentiment/1, /sentiment/2, /sentiment/3`);
-  console.log(`[api] Paid:  GET /sentiment/all ($0.05), /sentiment/4..8 ($0.01 each)`);
+  console.log(`[api] Paid:  GET /sentiment/all ($0.05), /sentiment/4..9 ($0.01), /divergence ($0.02)`);
   console.log(`[api] Demo:  GET /demo/sentiment/:subject ($0.001 USDC on Base Sepolia)`);
 });
 
