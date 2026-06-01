@@ -575,10 +575,12 @@ export async function submitAgentFeedback(nansenSuccessCount: number = 0): Promi
     // to avoid nonce collision on the deployer wallet
     await publicClient.waitForTransactionReceipt({ hash: tx2 });
 
-    // hybridSignal — only submit when Nansen returned live data this cycle
+    // revenues — only submit when Nansen returned live data this cycle
     if (nansenSuccessCount > 0) {
-      const hybridValue = BigInt(nansenSuccessCount * 10000);
-      const hybridHash  = keccak256(toHex(`hybridSignal-${AGENT_ID}-${Date.now()}`));
+      // revenues tag: value in whole USD, decimals=0
+      // nansenSuccessCount used as a count signal (each subject = $1 unit of verified data)
+      const hybridValue = BigInt(nansenSuccessCount);
+      const hybridHash  = keccak256(toHex(`revenues-${AGENT_ID}-${Date.now()}`));
       const tx3 = await deployerClient.writeContract({
         address:      REPUTATION_REGISTRY,
         abi:          reputationAbi,
@@ -586,15 +588,15 @@ export async function submitAgentFeedback(nansenSuccessCount: number = 0): Promi
         args: [
           AGENT_ID,
           hybridValue,
-          2,
-          "hybridSignal",
-          "nansen+grok",
+          0n,
+          "revenues",
+          "oracle",
           "https://aeco.onrender.com/divergence",
           "",
           hybridHash,
         ],
       });
-      console.log(`[feedback] hybridSignal submitted — ${nansenSuccessCount} subject(s) with live Nansen data | tx ${tx3}`);
+      console.log(`[feedback] revenues submitted — ${nansenSuccessCount} hybrid subject(s) | tx ${tx3}`);
     }
 
   } catch (err) {
