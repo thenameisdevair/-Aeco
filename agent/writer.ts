@@ -528,7 +528,7 @@ export async function submitAgentFeedback(nansenSuccessCount: number = 0): Promi
         args: [
           AGENT_ID,
           successRateValue,
-          2n,
+          2,
           'successRate',
           '',
           'https://aeco-eight.vercel.app',
@@ -561,7 +561,7 @@ export async function submitAgentFeedback(nansenSuccessCount: number = 0): Promi
       args: [
         AGENT_ID,
         uptimeValue,
-        2n,
+        2,
         'uptime',
         '',
         'https://aeco-eight.vercel.app',
@@ -575,20 +575,14 @@ export async function submitAgentFeedback(nansenSuccessCount: number = 0): Promi
     if (nansenSuccessCount > 0) {
       const hybridValue = BigInt(nansenSuccessCount * 10000);
       const hybridHash  = keccak256(toHex(`hybridSignal-${AGENT_ID}-${Date.now()}`));
-      const hybridNonce = await publicClient.getTransactionCount({
-        address:  deployerAccount.address,
-        blockTag: "pending",
-      });
-
       const tx3 = await deployerClient.writeContract({
         address:      REPUTATION_REGISTRY,
         abi:          reputationAbi,
         functionName: "giveFeedback",
-        nonce:        hybridNonce,
         args: [
           AGENT_ID,
           hybridValue,
-          2n,
+          2,
           "hybridSignal",
           "nansen+grok",
           "https://aeco.onrender.com/divergence",
