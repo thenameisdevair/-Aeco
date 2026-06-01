@@ -291,7 +291,7 @@ function MobileLeaderRow({ row, index }) {
 }
 
 // ---------- Full-screen bottom sheet modal ----------
-function MobilePredictionModal({ subject, onClose }) {
+function MobilePredictionModal({ subject, onClose, walletAddress }) {
   const [choice, setChoice] = useState(null);
   const [mounted, setMounted] = useState(false);
 
