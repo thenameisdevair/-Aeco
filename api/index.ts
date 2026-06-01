@@ -30,11 +30,11 @@ import { handleFaucet } from "./faucet";
 const AGENT_WALLET = "0x9600e1E61c5a412132f683b4DF591669Be7b1EE2" as const;
 
 const facilitatorClient = new HTTPFacilitatorClient({
-  url: "https://x402.org/facilitator",
+  url: "https://facilitator.xpay.sh",
 });
 
 const resourceServer = new x402ResourceServer(facilitatorClient)
-  .register("eip155:8453", new ExactEvmScheme());
+  .register("eip155:*", new ExactEvmScheme());
 
 const PAID_ACCEPTS = {
   scheme:  "exact",
