@@ -17,9 +17,9 @@ import express, {
 } from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
-import { paymentMiddleware } from "@x402/express";
-import { facilitator } from "thirdweb/x402";
-import { createThirdwebClient } from "thirdweb";
+import { paymentMiddleware, x402ResourceServer } from "@x402/express";
+import { ExactEvmScheme } from "@x402/evm/exact/server";
+import { HTTPFacilitatorClient } from "@x402/core/server";
 import { getSentiment, getAllSentiment, getHeartbeats, getDivergence } from "./lib/contracts";
 import { handleFaucet } from "./faucet";
 
@@ -29,15 +29,18 @@ import { handleFaucet } from "./faucet";
 
 const AGENT_WALLET = "0x9600e1E61c5a412132f683b4DF591669Be7b1EE2" as const;
 
-const thirdwebClient = createThirdwebClient({
-  secretKey: process.env["THIRDWEB_SECRET_KEY"] ?? "",
+const facilitatorClient = new HTTPFacilitatorClient({
+  url: "https://x402.org/facilitator",
 });
 
-const twFacilitator = facilitator({
-  client: thirdwebClient,
-  serverWalletAddress: (process.env["THIRDWEB_SERVER_WALLET"] ?? "0x2e25b319e6f445c12eaD13727B02B0af7cA55A6d") as `0x${string}`,
-  waitUntil: "submitted",
-});
+const resourceServer = new x402ResourceServer(facilitatorClient)
+  .register("eip155:8453", new ExactEvmScheme());
+
+const PAID_ACCEPTS = {
+  scheme:  "exact",
+  network: "eip155:8453",
+  payTo:   AGENT_WALLET,
+} as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Subject name → ID lookup
@@ -155,47 +158,42 @@ app.use(
   paymentMiddleware(
     {
       "GET /sentiment/all": {
-        price:   "$0.05",
-        network: "eip155:42220",
-        config:  { description: "All 9 sentiment subjects — Aeco hybrid oracle" },
+        accepts:     { ...PAID_ACCEPTS, price: "$0.05" },
+        description: "All 9 sentiment subjects — Aeco hybrid oracle",
       },
       "GET /sentiment/4": {
-        price:   "$0.01",
-        network: "eip155:42220",
-        config:  { description: "BTC hybrid sentiment (Grok + Nansen)" },
+        accepts:     { ...PAID_ACCEPTS, price: "$0.01" },
+        description: "BTC hybrid sentiment (Grok + Nansen)",
       },
       "GET /sentiment/5": {
-        price:   "$0.01",
-        network: "eip155:42220",
-        config:  { description: "ETH hybrid sentiment (Grok + Nansen)" },
+        accepts:     { ...PAID_ACCEPTS, price: "$0.01" },
+        description: "ETH hybrid sentiment (Grok + Nansen)",
       },
       "GET /sentiment/6": {
-        price:   "$0.01",
-        network: "eip155:42220",
-        config:  { description: "Vitalik Buterin sentiment" },
+        accepts:     { ...PAID_ACCEPTS, price: "$0.01" },
+        description: "Vitalik Buterin sentiment",
       },
       "GET /sentiment/7": {
-        price:   "$0.01",
-        network: "eip155:42220",
-        config:  { description: "Stablecoin Regulation sentiment" },
+        accepts:     { ...PAID_ACCEPTS, price: "$0.01" },
+        description: "Stablecoin Regulation sentiment",
       },
       "GET /sentiment/8": {
-        price:   "$0.01",
-        network: "eip155:42220",
-        config:  { description: "Africa Crypto Adoption sentiment" },
+        accepts:     { ...PAID_ACCEPTS, price: "$0.01" },
+        description: "Africa Crypto Adoption sentiment",
       },
       "GET /sentiment/9": {
-        price:   "$0.01",
-        network: "eip155:42220",
-        config:  { description: "SOL hybrid sentiment (Grok + Nansen)" },
+        accepts:     { ...PAID_ACCEPTS, price: "$0.01" },
+        description: "SOL hybrid sentiment (Grok + Nansen)",
       },
       "GET /divergence": {
-        price:   "$0.02",
-        network: "eip155:42220",
-        config:  { description: "Subjects where social and Smart Money disagree" },
+        accepts:     { ...PAID_ACCEPTS, price: "$0.02" },
+        description: "Subjects where social and Smart Money disagree",
       },
     },
-    twFacilitator,
+    resourceServer,
+    undefined,
+    undefined,
+    false,
   )
 );
 
@@ -213,8 +211,8 @@ app.get("/health", (_req: Request, res: Response) => {
     agentId:        9112,
     version:        "2.0.0",
     subjects:       9,
-    facilitator:    "thirdweb",
-    paymentNetwork: "Celo mainnet (eip155:42220)",
+    facilitator:    "Coinbase x402.org",
+    paymentNetwork: "Base mainnet (eip155:8453)",
     dataNetwork:    "Celo mainnet (eip155:42220)",
     timestamp:      Date.now(),
   });
@@ -296,7 +294,8 @@ app.get("/sentiment/:subject", async (req: Request, res: Response) => {
 const PORT = parseInt(process.env["PORT"] ?? "3000", 10);
 
 (async () => {
-  console.log(`[api] x402 facilitator: thirdweb | network: Celo eip155:42220 | payTo: ${AGENT_WALLET}`);
+  await resourceServer.initialize();
+  console.log(`[api] x402 facilitator: Coinbase | network: Base eip155:8453 | payTo: ${AGENT_WALLET}`);
 
   app.listen(PORT, () => {
     console.log(`[api] Aeco oracle API running on port ${PORT}`);
