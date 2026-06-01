@@ -108,6 +108,7 @@ export async function runCycle(): Promise<void> {
 
   let subjectsScanned  = 0;
   let anyPosted        = false;
+  let nansenSuccessCount = 0;
   const postedSubjects: string[] = [];
 
   // ── Step 2: Process each subject ──────────────────────────────────────────
@@ -173,6 +174,7 @@ export async function runCycle(): Promise<void> {
         console.log(
           `[agent]   Nansen flowSignal for "${subject.name}": ${flowSignal.toFixed(2)} USD net`
         );
+        nansenSuccessCount += 1;
 
         // Divergence detection — log when social and smart-money disagree.
         const socialBullish  = signal === "bullish";
@@ -268,7 +270,7 @@ export async function runCycle(): Promise<void> {
 
   console.log(`[agent] Checking for expired predictions to resolve...`);
   await resolveExpiredPredictions();
-  await submitAgentFeedback();
+  await submitAgentFeedback(nansenSuccessCount);
 
   console.log(`\n[agent] Cycle complete in ${cycleDurationMs}ms.`);
   console.log(`${"─".repeat(60)}\n`);

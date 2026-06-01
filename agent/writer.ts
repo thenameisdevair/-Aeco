@@ -460,7 +460,7 @@ export async function resolveExpiredPredictions(): Promise<void> {
  * the last 12 heartbeat slots). Both scores are encoded with 2 decimal places
  * (multiply × 10000 so 9500 = 95.00%).
  */
-export async function submitAgentFeedback(): Promise<void> {
+export async function submitAgentFeedback(nansenSuccessCount: number = 0): Promise<void> {
   const REPUTATION_REGISTRY = "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63" as Address;
   const AGENT_ID = 9112n;
 
@@ -570,6 +570,34 @@ export async function submitAgentFeedback(): Promise<void> {
       ],
     });
     console.log(`[feedback] uptime submitted — ${history.length}/12 cycles | tx ${tx2}`);
+
+    // hybridSignal — only submit when Nansen returned live data this cycle
+    if (nansenSuccessCount > 0) {
+      const hybridValue = BigInt(nansenSuccessCount * 10000);
+      const hybridHash  = keccak256(toHex(`hybridSignal-${AGENT_ID}-${Date.now()}`));
+      const hybridNonce = await publicClient.getTransactionCount({
+        address:  deployerAccount.address,
+        blockTag: "pending",
+      });
+
+      const tx3 = await deployerClient.writeContract({
+        address:      REPUTATION_REGISTRY,
+        abi:          reputationAbi,
+        functionName: "giveFeedback",
+        nonce:        hybridNonce,
+        args: [
+          AGENT_ID,
+          hybridValue,
+          2n,
+          "hybridSignal",
+          "nansen+grok",
+          "https://aeco.onrender.com/divergence",
+          "",
+          hybridHash,
+        ],
+      });
+      console.log(`[feedback] hybridSignal submitted — ${nansenSuccessCount} subject(s) with live Nansen data | tx ${tx3}`);
+    }
 
   } catch (err) {
     console.error("[feedback] submitAgentFeedback failed:", err);
