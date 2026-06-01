@@ -13,7 +13,8 @@
  *
  * Required environment variables: see writer.ts and grok.ts.
  */
-
+import dotenv from "dotenv";
+dotenv.config();
 import { fetchPrices }          from "./prices";
 import { callGrok }             from "./grok";
 import { getFlowSignal }        from "./nansen";
