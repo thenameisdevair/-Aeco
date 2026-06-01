@@ -22,6 +22,9 @@ const SENTIMENT_FEED   = '0x0684191E2e8Ac149F0073875242af19eC08D0724';
 const HEARTBEAT_ORACLE = '0x2199C72E411ed90fB10772259E3194791406EAd9';
 const AEC_TOKEN        = '0x4EbACf161bae6e52Ff52F12ab217c175f1D856D4';
 
+// Subjects with Nansen Smart Money coverage — prediction-enabled
+const HYBRID_SUBJECTS = new Set([4, 5, 9]); // BTC (4), ETH (5), SOL (9)
+
 // ─── ABIs ─────────────────────────────────────────────────────────────────────
 
 const SENTIMENT_ABI = [
@@ -59,6 +62,9 @@ const SENTIMENT_ABI = [
         { name: 'timestamp',     type: 'uint256' },
         { name: 'deltaFromLast', type: 'int8'    },
         { name: 'agentVersion',  type: 'string'  },
+        { name: 'socialScore',    type: 'uint8'  },
+        { name: 'nansenFlow',     type: 'int256' },
+        { name: 'divergenceFlag', type: 'bool'   },
       ],
     }],
   },
@@ -172,6 +178,10 @@ export async function fetchAllSubjects() {
         summary:    rec ? rec.summary                            : '',
         updated:    rec && rec.timestamp ? timeAgo(rec.timestamp) : 'never',
         delta:      rec ? Number(rec.deltaFromLast)               : 0,
+        socialScore:    rec ? Number(rec.socialScore)             : 0,
+        nansenFlow:     rec ? rec.nansenFlow                      : 0n,
+        divergenceFlag: rec ? rec.divergenceFlag                  : false,
+        isHybrid:       HYBRID_SUBJECTS.has(Number(subject.id)),
       };
     });
   } catch (err) {
