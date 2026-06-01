@@ -153,7 +153,6 @@ app.get("/demo/sentiment/:subject", async (req: Request, res: Response) => {
 
 app.use(
   paymentMiddleware(
-    AGENT_WALLET,
     {
       "GET /sentiment/all": {
         price:   "$0.05",
