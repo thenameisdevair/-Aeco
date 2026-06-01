@@ -289,12 +289,18 @@ app.get("/sentiment/:subject", async (req: Request, res: Response) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PORT = parseInt(process.env["PORT"] ?? "3000", 10);
-app.listen(PORT, () => {
-  console.log(`[api] Aeco oracle API running on port ${PORT}`);
-  console.log(`[api] Free:  GET /health, /heartbeat, /sentiment/1, /sentiment/2, /sentiment/3`);
-  console.log(`[api] Paid:  GET /sentiment/all ($0.05), /sentiment/4..9 ($0.01), /divergence ($0.02)`);
-  console.log(`[api] Demo:  GET /demo/sentiment/:subject ($0.001 USDC on Base Sepolia)`);
-});
 
-// Keep event loop alive
-process.stdin.resume();
+(async () => {
+  await resourceServer.initialize();
+  console.log("[api] x402 resource server initialized");
+
+  app.listen(PORT, () => {
+    console.log(`[api] Aeco oracle API running on port ${PORT}`);
+    console.log(`[api] Free:  GET /health, /heartbeat, /sentiment/1, /sentiment/2, /sentiment/3`);
+    console.log(`[api] Paid:  GET /sentiment/all ($0.05), /sentiment/4..9 ($0.01), /divergence ($0.02)`);
+    console.log(`[api] Demo:  GET /demo/sentiment/:subject ($0.001 USDC on Base Sepolia)`);
+  });
+
+  // Keep event loop alive
+  process.stdin.resume();
+})();
