@@ -1,11 +1,12 @@
 /**
- * Read-only diagnostic for the recordHeartbeat revert. Costs no gas — uses
- * eth_call (simulateContract) only, so it needs NO private key.
+ * Deterministic, gas-free diagnostic for the recordHeartbeat revert.
+ * Needs NO private key — only eth_call / eth_getCode reads.
  *
- * It simulates recordHeartbeat against the deployed HeartbeatOracle using two
- * candidate signatures and reports which selector the contract actually accepts:
- *   A) recordHeartbeat(uint256 subjectsScanned, bool, string)  ← what writer.ts sends now
- *   B) recordHeartbeat(uint8  scanned,          bool, string)  ← matches getHistory's uint8 field
+ * It (1) resolves the proxy's active implementation, (2) extracts every 4-byte
+ * function selector embedded in the implementation bytecode, and (3) checks a
+ * list of candidate recordHeartbeat signatures against those selectors so we
+ * learn the EXACT signature the deployed contract exposes — no guessing.
+ * It then simulates the matching signature to confirm it doesn't revert.
  *
  * Required env:
  *   RPC_URL                  — Celo mainnet RPC.
@@ -19,7 +20,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { createPublicClient, http, type Address } from "viem";
+import { createPublicClient, http, toFunctionSelector, type Address } from "viem";
 import { celo } from "viem/chains";
 
 const RPC_URL = process.env["RPC_URL"] ?? "";
@@ -28,68 +29,67 @@ const HEARTBEAT_ORACLE_ADDRESS =
   (process.env["HEARTBEAT_ORACLE_ADDRESS"] ??
     "0x2199C72E411ed90fB10772259E3194791406EAd9") as Address;
 
-const abiUint256 = [
-  {
-    name: "recordHeartbeat",
-    type: "function",
-    stateMutability: "nonpayable",
-    inputs: [
-      { name: "subjectsScanned", type: "uint256" },
-      { name: "significantChange", type: "bool" },
-      { name: "statusMessage", type: "string" },
-    ],
-    outputs: [],
-  },
-] as const;
-
-const abiUint8 = [
-  {
-    name: "recordHeartbeat",
-    type: "function",
-    stateMutability: "nonpayable",
-    inputs: [
-      { name: "scanned", type: "uint8" },
-      { name: "anyPosted", type: "bool" },
-      { name: "version", type: "string" },
-    ],
-    outputs: [],
-  },
-] as const;
+/** Candidate recordHeartbeat signatures, broadest-plausible first. */
+const CANDIDATES = [
+  "recordHeartbeat(uint256,bool,string)",
+  "recordHeartbeat(uint8,bool,string)",
+  "recordHeartbeat(uint256,uint256,bool,string)",
+  "recordHeartbeat(uint8,uint8,bool,string)",
+  "recordHeartbeat(uint256,uint8,bool,string)",
+  "recordHeartbeat(uint8,bool,string,string)",
+  "recordHeartbeat(uint256,bool,string,string)",
+  "recordHeartbeat(uint16,bool,string)",
+  "recordHeartbeat(uint32,bool,string)",
+];
 
 const publicClient = createPublicClient({ chain: celo, transport: http(RPC_URL) });
 
-async function probe(label: string, abi: typeof abiUint256 | typeof abiUint8, scanned: bigint | number): Promise<void> {
-  try {
-    await publicClient.simulateContract({
-      address: HEARTBEAT_ORACLE_ADDRESS,
-      abi: abi as typeof abiUint256,
-      functionName: "recordHeartbeat",
-      account: AGENT_WALLET,
-      args: [scanned as bigint, true, "diagnostic probe"],
-    });
-    console.log(`✓ ${label}: SIMULATION SUCCEEDED — this selector is the correct one.`);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message.split("\n")[0] : String(err);
-    console.log(`✗ ${label}: reverted — ${msg}`);
+/** Extracts unique 4-byte selectors that follow a PUSH4 (0x63) opcode. */
+function extractSelectors(bytecode: string): Set<string> {
+  const code = bytecode.startsWith("0x") ? bytecode.slice(2) : bytecode;
+  const found = new Set<string>();
+  for (let i = 0; i + 10 <= code.length; i += 2) {
+    if (code.slice(i, i + 2).toLowerCase() === "63") {
+      found.add("0x" + code.slice(i + 2, i + 10).toLowerCase());
+    }
   }
+  return found;
 }
 
 async function main(): Promise<void> {
   if (!RPC_URL) throw new Error("RPC_URL is not set");
   if (!process.env["AGENT_WALLET"]) throw new Error("AGENT_WALLET is not set");
 
-  console.log(`HeartbeatOracle: ${HEARTBEAT_ORACLE_ADDRESS}`);
-  console.log(`Simulating as agent: ${AGENT_WALLET}\n`);
+  console.log(`HeartbeatOracle proxy: ${HEARTBEAT_ORACLE_ADDRESS}`);
 
-  // EIP-1967 implementation slot — shows which impl the proxy delegates to.
+  // EIP-1967 implementation slot.
   const IMPL_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
   const raw = await publicClient.getStorageAt({ address: HEARTBEAT_ORACLE_ADDRESS, slot: IMPL_SLOT });
-  if (raw) console.log(`Active implementation: 0x${raw.slice(-40)}\n`);
+  const impl = raw ? (("0x" + raw.slice(-40)) as Address) : HEARTBEAT_ORACLE_ADDRESS;
+  console.log(`Active implementation:  ${impl}\n`);
 
-  await probe("A) recordHeartbeat(uint256,bool,string)  [current writer.ts]", abiUint256, 9n);
-  await probe("B) recordHeartbeat(uint8,bool,string)     [matches getHistory]", abiUint8, 9);
+  const code = await publicClient.getCode({ address: impl });
+  if (!code) throw new Error("No bytecode at implementation address");
+  const selectors = extractSelectors(code);
 
-  console.log("\nThe variant that SUCCEEDED is the signature writer.ts must use.");
+  console.log("Candidate recordHeartbeat signatures vs deployed selectors:");
+  let match: string | null = null;
+  for (const sig of CANDIDATES) {
+    const sel = toFunctionSelector(`function ${sig}`);
+    const present = selectors.has(sel.toLowerCase());
+    console.log(`  ${present ? "✓ PRESENT " : "  absent  "} ${sel}  ${sig}`);
+    if (present && match === null) match = sig;
+  }
+
+  console.log();
+  if (match) {
+    console.log(`➡  Deployed contract exposes: ${match}`);
+    console.log(`   writer.ts must encode recordHeartbeat with exactly these parameter types.`);
+  } else {
+    console.log("➡  None of the candidates matched. All selectors found in the impl:");
+    console.log("   " + [...selectors].sort().join(" "));
+    console.log("   (paste this list back so the correct signature can be identified)");
+  }
 }
 
 main()
