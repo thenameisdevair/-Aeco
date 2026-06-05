@@ -328,9 +328,11 @@ export function shouldPost(
   if (lastSignal !== null && newSignal !== lastSignal) return true;
 
   if (lastPostTimestamp !== null) {
-    const nowSeconds    = Date.now() / 1000;
-    const sixHoursAgo   = nowSeconds - 6 * 60 * 60;
-    if (lastPostTimestamp < sixHoursAgo) return true;
+    const nowSeconds      = Date.now() / 1000;
+    // POST_INTERVAL_SECONDS overrides the default 6-hour repost window.
+    // Set to 0 in CI/submission to always post when a prior record exists.
+    const intervalSeconds = parseInt(process.env["POST_INTERVAL_SECONDS"] ?? "21600", 10);
+    if (lastPostTimestamp < nowSeconds - intervalSeconds) return true;
   }
 
   return false;
@@ -619,13 +621,16 @@ export async function recordHeartbeat(
 ): Promise<boolean> {
   try {
     const nonce = await publicClient.getTransactionCount({ address: agentAccount.address, blockTag: "pending" });
+    // NOTE: no explicit maxFeePerGas. A 2000 gwei cap here previously throttled
+    // the usable gas to ~balance/maxFeePerGas (~2.4M), which is below what the
+    // O(n) _shiftHistory path on a full 100-entry history needs — causing an
+    // out-of-gas revert (empty 0x) while eth_call/simulation still succeeded.
+    // Letting viem estimate fees (as postSentiment does) removes the cap.
     const txHash = await walletClient.writeContract({
       address:      HEARTBEAT_ORACLE_ADDRESS,
       abi:          heartbeatOracleAbi,
       functionName: "recordHeartbeat",
       nonce,
-      maxFeePerGas:         2000000000000n,
-      maxPriorityFeePerGas: 2000000000000n,
       args:         [BigInt(subjectsScanned), significantChange, statusMessage],
     });
 
