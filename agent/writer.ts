@@ -328,9 +328,11 @@ export function shouldPost(
   if (lastSignal !== null && newSignal !== lastSignal) return true;
 
   if (lastPostTimestamp !== null) {
-    const nowSeconds    = Date.now() / 1000;
-    const sixHoursAgo   = nowSeconds - 6 * 60 * 60;
-    if (lastPostTimestamp < sixHoursAgo) return true;
+    const nowSeconds      = Date.now() / 1000;
+    // POST_INTERVAL_SECONDS overrides the default 6-hour repost window.
+    // Set to 0 in CI/submission to always post when a prior record exists.
+    const intervalSeconds = parseInt(process.env["POST_INTERVAL_SECONDS"] ?? "21600", 10);
+    if (lastPostTimestamp < nowSeconds - intervalSeconds) return true;
   }
 
   return false;
