@@ -619,13 +619,16 @@ export async function recordHeartbeat(
 ): Promise<boolean> {
   try {
     const nonce = await publicClient.getTransactionCount({ address: agentAccount.address, blockTag: "pending" });
+    // NOTE: no explicit maxFeePerGas. A 2000 gwei cap here previously throttled
+    // the usable gas to ~balance/maxFeePerGas (~2.4M), which is below what the
+    // O(n) _shiftHistory path on a full 100-entry history needs — causing an
+    // out-of-gas revert (empty 0x) while eth_call/simulation still succeeded.
+    // Letting viem estimate fees (as postSentiment does) removes the cap.
     const txHash = await walletClient.writeContract({
       address:      HEARTBEAT_ORACLE_ADDRESS,
       abi:          heartbeatOracleAbi,
       functionName: "recordHeartbeat",
       nonce,
-      maxFeePerGas:         2000000000000n,
-      maxPriorityFeePerGas: 2000000000000n,
       args:         [BigInt(subjectsScanned), significantChange, statusMessage],
     });
 
