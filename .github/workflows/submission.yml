@@ -21,6 +21,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Grant AGENT_ROLE to agent wallet (idempotent — fixes recordHeartbeat/postSentiment reverts)
+        env:
+          PRIVATE_KEY_DEPLOYER: ${{ secrets.PRIVATE_KEY_DEPLOYER }}
+          AGENT_WALLET: ${{ secrets.AGENT_WALLET }}
+          RPC_URL: ${{ secrets.RPC_URL }}
+          SENTIMENT_FEED_ADDRESS: ${{ secrets.SENTIMENT_FEED_ADDRESS }}
+          HEARTBEAT_ORACLE_ADDRESS: ${{ secrets.HEARTBEAT_ORACLE_ADDRESS }}
+        run: npx ts-node scripts/grant-agent-role.ts
+
       - name: Seed predictions (condition 2 — >=5 confirmed makePrediction tx hashes)
         env:
           PRIVATE_KEY_AGENT: ${{ secrets.PRIVATE_KEY_AGENT }}
