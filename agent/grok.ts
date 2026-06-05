@@ -145,7 +145,7 @@ export async function callGrok(prompt: string): Promise<GrokResponse | null> {
       ],
     } as Parameters<typeof client.responses.create>[0]);
 
-    rawText = response.output_text;
+    rawText = (response as { output_text: string }).output_text;
 
     if (!rawText) {
       console.error("[grok] response.output_text is empty.");

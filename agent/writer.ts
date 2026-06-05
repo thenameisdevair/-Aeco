@@ -20,7 +20,7 @@ import {
   type Address,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { celo, celoSepolia } from "viem/chains";
+import { celo } from "viem/chains";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Environment
@@ -48,7 +48,7 @@ const DEPLOYER_PRIVATE_KEY = (
 const transport = http(RPC_URL);
 
 export const publicClient = createPublicClient({
-  chain:     celoSepolia,
+  chain:     celo,
   transport,
 });
 
@@ -56,7 +56,7 @@ export const agentAccount = privateKeyToAccount(AGENT_PRIVATE_KEY);
 
 export const walletClient = createWalletClient({
   account:   agentAccount,
-  chain:     celoSepolia,
+  chain:     celo,
   transport,
 });
 
@@ -588,7 +588,7 @@ export async function submitAgentFeedback(nansenSuccessCount: number = 0): Promi
         args: [
           AGENT_ID,
           hybridValue,
-          0n,
+          0,
           "revenues",
           "oracle",
           "https://aeco.onrender.com/divergence",
