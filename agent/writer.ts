@@ -631,11 +631,13 @@ export async function recordHeartbeat(
       abi:          heartbeatOracleAbi,
       functionName: "recordHeartbeat",
       nonce,
-      // Explicit gas cap bypasses eth_estimateGas, which on Celo's forno RPC
-      // times out when _shiftHistory() is called across 100 history entries
-      // (~4-5M gas for the cold SLOAD+SSTORE chain). 10M gas is ample headroom
-      // at Celo fee levels; the actual cost is still well under 0.05 CELO.
-      gas:          10_000_000n,
+      // Bypass eth_estimateGas (fails on forno once _shiftHistory runs over 100
+      // entries).  6M gas is ample for the O(n) cold-SLOAD+SSTORE chain.
+      // maxFeePerGas is capped at 5 gwei so the call never costs more than
+      // ~0.03 CELO regardless of fee spikes on the RPC.
+      gas:               6_000_000n,
+      maxFeePerGas:      5_000_000_000n,
+      maxPriorityFeePerGas: 2_000_000_000n,
       args:         [BigInt(subjectsScanned), significantChange, statusMessage],
     });
 
