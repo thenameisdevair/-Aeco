@@ -1,6 +1,8 @@
 name: Aeco Sentiment Agent
 
 on:
+  push:
+    branches: [main]         # trigger on every push to main
   schedule:
     - cron: '0 */2 * * *'  # every 2 hours
   workflow_dispatch:         # manual trigger
