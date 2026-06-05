@@ -1,0 +1,42 @@
+name: Aeco Submission Pipeline
+
+# Runs the prediction seeder (>=5 makePrediction txs on Celo mainnet) and then
+# the agent cycle (hybrid Grok+Nansen oracle -> "✓ Posted sentiment"). Manual
+# dispatch only; uses the repository secrets that hold the funded keys, RPC, and
+# Grok API key — none of which exist in the web sandbox.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  seed-and-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Seed predictions (condition 2 — >=5 confirmed makePrediction tx hashes)
+        env:
+          PRIVATE_KEY_AGENT: ${{ secrets.PRIVATE_KEY_AGENT }}
+          PRIVATE_KEY_DEPLOYER: ${{ secrets.PRIVATE_KEY_DEPLOYER }}
+          RPC_URL: ${{ secrets.RPC_URL }}
+          SENTIMENT_FEED_ADDRESS: ${{ secrets.SENTIMENT_FEED_ADDRESS }}
+        run: npx ts-node scripts/seed-predictions.ts
+
+      - name: Run agent cycle (condition 3 — "✓ Posted sentiment")
+        env:
+          GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
+          PRIVATE_KEY_AGENT: ${{ secrets.PRIVATE_KEY_AGENT }}
+          PRIVATE_KEY_DEPLOYER: ${{ secrets.PRIVATE_KEY_DEPLOYER }}
+          AGENT_WALLET: ${{ secrets.AGENT_WALLET }}
+          RPC_URL: ${{ secrets.RPC_URL }}
+          SENTIMENT_FEED_ADDRESS: ${{ secrets.SENTIMENT_FEED_ADDRESS }}
+          HEARTBEAT_ORACLE_ADDRESS: ${{ secrets.HEARTBEAT_ORACLE_ADDRESS }}
+          AGENT_VERSION: "1.0.0"
+        run: npm run agent
