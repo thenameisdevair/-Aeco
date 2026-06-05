@@ -22,6 +22,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Grant AGENT_ROLE to agent wallet (idempotent — re-grants if revoked after proxy upgrade)
+        env:
+          PRIVATE_KEY_DEPLOYER: ${{ secrets.PRIVATE_KEY_DEPLOYER }}
+          AGENT_WALLET: ${{ secrets.AGENT_WALLET }}
+          RPC_URL: ${{ secrets.RPC_URL }}
+          SENTIMENT_FEED_ADDRESS: ${{ secrets.SENTIMENT_FEED_ADDRESS }}
+          HEARTBEAT_ORACLE_ADDRESS: ${{ secrets.HEARTBEAT_ORACLE_ADDRESS }}
+        run: npx ts-node scripts/grant-agent-role.ts
+
       - name: Run agent cycle
         env:
           GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
