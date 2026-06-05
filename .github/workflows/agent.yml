@@ -30,4 +30,5 @@ jobs:
           SENTIMENT_FEED_ADDRESS: ${{ secrets.SENTIMENT_FEED_ADDRESS }}
           HEARTBEAT_ORACLE_ADDRESS: ${{ secrets.HEARTBEAT_ORACLE_ADDRESS }}
           AGENT_VERSION: "1.0.0"
+          POST_INTERVAL_SECONDS: "0"
         run: npm run agent
