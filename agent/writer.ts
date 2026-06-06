@@ -602,7 +602,20 @@ export async function submitAgentFeedback(nansenSuccessCount: number = 0): Promi
     }
 
   } catch (err) {
-    console.error("[feedback] submitAgentFeedback failed:", err);
+    // submitAgentFeedback is best-effort: it writes supplementary ERC-8004
+    // reputation entries from the deployer wallet and is independent of the
+    // agent's core sentiment/heartbeat duties. forno reports the deployer's
+    // pending nonce without visibility into the sequencer mempool, so a feed
+    // tx left pending by a prior run can make this cycle's tx collide as
+    // "replacement transaction underpriced". That is transient contention, not
+    // a failure of this cycle — log it as informational so it does not mask the
+    // cycle's success. Genuine, unexpected errors are still surfaced.
+    const message = err instanceof Error ? err.message : String(err);
+    if (/replacement transaction underpriced|nonce too low|already known/i.test(message)) {
+      console.log("[feedback] uptime submission deferred — deployer nonce contention (transient, non-fatal).");
+    } else {
+      console.error("[feedback] submitAgentFeedback failed:", err);
+    }
   }
 }
 
