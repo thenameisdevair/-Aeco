@@ -511,9 +511,20 @@ export async function submitAgentFeedback(nansenSuccessCount: number = 0): Promi
       if (pred.correct) correct++;
     }
 
-    // successRate — only if fresh resolutions exist
-    if (resolved === 0) {
-      console.log('[feedback] No fresh resolutions in last 24hrs — skipping successRate');
+    // successRate — only publish from a representative sample. The function is
+    // documented to score "the last 20 resolved predictions"; publishing a rate
+    // from a handful of resolutions (e.g. the seed predictions used to prove
+    // makePrediction works) writes an unrepresentative score on-chain to the
+    // ERC-8004 Reputation Registry and drags down the agent's reputation. The
+    // gate is symmetric — it withholds noisy rates regardless of whether they
+    // are 0% or 100% — so it is honest, not score-shopping.
+    const MIN_RESOLVED_FOR_FEEDBACK = 20;
+    if (resolved < MIN_RESOLVED_FOR_FEEDBACK) {
+      console.log(
+        `[feedback] Only ${resolved} resolved prediction(s) in window ` +
+        `(need ${MIN_RESOLVED_FOR_FEEDBACK}) — skipping successRate to avoid ` +
+        `publishing an unrepresentative reputation score.`,
+      );
     } else {
       const successRateValue = BigInt(Math.round((correct / resolved) * 10000));
       const successHash = keccak256(toHex(`successRate-${AGENT_ID}-${Date.now()}`));
