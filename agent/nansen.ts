@@ -21,25 +21,31 @@
 
 /** Raw response object from the Flow Intelligence endpoint (single array element). */
 export interface FlowIntelligence {
-  smartTraderFlow:      number;
-  topPnlFlow:           number;
-  whaleFlow:            number;
-  exchangeFlow:         number;
-  publicFigureFlow:     number;
-  freshWalletsFlow:     number;
-  smartTraderWallets:   number;
-  topPnlWallets:        number;
-  whaleWallets:         number;
-  exchangeWallets:      number;
-  publicFigureWallets:  number;
-  freshWalletsWallets:  number;
+  public_figure_net_flow_usd:    number;
+  public_figure_avg_flow_usd:    number;
+  public_figure_wallet_count:    number;
+  top_pnl_net_flow_usd:          number;
+  top_pnl_avg_flow_usd:          number;
+  top_pnl_wallet_count:          number;
+  whale_net_flow_usd:            number;
+  whale_avg_flow_usd:            number;
+  whale_wallet_count:            number;
+  smart_trader_net_flow_usd:     number;
+  smart_trader_avg_flow_usd:     number;
+  smart_trader_wallet_count:     number;
+  exchange_net_flow_usd:         number;
+  exchange_avg_flow_usd:         number;
+  exchange_wallet_count:         number;
+  fresh_wallets_net_flow_usd:    number;
+  fresh_wallets_avg_flow_usd:    number;
+  fresh_wallets_wallet_count:    number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ENDPOINT = "https://api.nansen.ai/api/beta/tgm/flow-intelligence";
+const ENDPOINT = "https://api.nansen.ai/api/v1/tgm/flow-intelligence";
 const DEFAULT_TIMEFRAME = "1d";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -77,8 +83,9 @@ export async function getFlowIntelligence(
         "Content-Type":  "application/json",
       },
       body: JSON.stringify({
-        parameters: { chain, tokenAddress, timeframe },
-        pagination: { page: 1, recordsPerPage: 100 },
+        chain,
+        token_address: tokenAddress,
+        timeframe: timeframe ?? "1d",
       }),
     });
   } catch (err) {
@@ -91,28 +98,31 @@ export async function getFlowIntelligence(
     return null;
   }
 
-  let body: unknown;
+  let json: { data: FlowIntelligence[] };
   try {
-    body = await res.json();
+    json = await res.json() as { data: FlowIntelligence[] };
   } catch (err) {
     console.error("[nansen] Failed to parse response JSON:", err);
     return null;
   }
 
-  if (!Array.isArray(body) || body.length === 0) {
-    console.error("[nansen] Unexpected response shape (expected non-empty array):", body);
+  if (!Array.isArray(json.data) || json.data.length === 0) {
+    console.error("[nansen] Empty or invalid data array in response");
     return null;
   }
 
-  const raw = body[0] as Record<string, unknown>;
+  const item = json.data[0];
 
   const flowFields: Array<keyof FlowIntelligence> = [
-    "smartTraderFlow", "topPnlFlow", "whaleFlow",
-    "exchangeFlow", "publicFigureFlow", "freshWalletsFlow",
-    "smartTraderWallets", "topPnlWallets", "whaleWallets",
-    "exchangeWallets", "publicFigureWallets", "freshWalletsWallets",
+    "public_figure_net_flow_usd", "public_figure_avg_flow_usd", "public_figure_wallet_count",
+    "top_pnl_net_flow_usd",       "top_pnl_avg_flow_usd",       "top_pnl_wallet_count",
+    "whale_net_flow_usd",         "whale_avg_flow_usd",          "whale_wallet_count",
+    "smart_trader_net_flow_usd",  "smart_trader_avg_flow_usd",   "smart_trader_wallet_count",
+    "exchange_net_flow_usd",      "exchange_avg_flow_usd",        "exchange_wallet_count",
+    "fresh_wallets_net_flow_usd", "fresh_wallets_avg_flow_usd",  "fresh_wallets_wallet_count",
   ];
 
+  const raw = item as unknown as Record<string, unknown>;
   for (const field of flowFields) {
     if (typeof raw[field] !== "number") {
       console.error(`[nansen] Missing or non-numeric field "${field}" in response:`, raw);
@@ -120,7 +130,7 @@ export async function getFlowIntelligence(
     }
   }
 
-  return raw as unknown as FlowIntelligence;
+  return item;
 }
 
 /**
@@ -131,7 +141,9 @@ export async function getFlowIntelligence(
  * net distribution.
  */
 export function computeFlowSignal(f: FlowIntelligence): number {
-  return f.smartTraderFlow + f.topPnlFlow + 0.5 * f.whaleFlow;
+  return f.smart_trader_net_flow_usd
+    + f.top_pnl_net_flow_usd
+    + 0.5 * f.whale_net_flow_usd;
 }
 
 /**
