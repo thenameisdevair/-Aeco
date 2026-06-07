@@ -98,7 +98,7 @@ contract SentimentFeed is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     uint256 public constant MAX_HISTORY = 50;
 
     /// @notice Semantic version of this implementation contract.
-    string public constant CONTRACT_VERSION = "2.3.0";
+    string public constant CONTRACT_VERSION = "2.4.0";
 
     // ─────────────────────────────────────────────────────────────────────────
     // State
@@ -282,23 +282,71 @@ contract SentimentFeed is Initializable, AccessControlUpgradeable, UUPSUpgradeab
         require(confidence <= 100,               "SentimentFeed: confidence out of range");
         require(signal     <= 2,                 "SentimentFeed: invalid signal");
 
+        // Build record in memory
         SentimentRecord memory record = SentimentRecord({
-            subjectId:     subjectId,
-            score:         score,
-            signal:        signal,
-            confidence:    confidence,
-            summary:       summary,
-            sourceType:    sourceType,
-            timestamp:     block.timestamp,
-            deltaFromLast: deltaFromLast,
-            agentVersion:  agentVersion,
-            socialScore:   socialScore,
-            nansenFlow:    nansenFlow,
+            subjectId:      subjectId,
+            score:          score,
+            signal:         signal,
+            confidence:     confidence,
+            summary:        summary,
+            sourceType:     sourceType,
+            timestamp:      block.timestamp,
+            deltaFromLast:  deltaFromLast,
+            agentVersion:   agentVersion,
+            socialScore:    socialScore,
+            nansenFlow:     nansenFlow,
             divergenceFlag: divergenceFlag
         });
 
+        // Write to latestRecord using assembly for string fields to bypass
+        // Solidity's string-freeing logic that panics on corrupted V1 storage.
+        {
+            bytes32 baseSlot;
+            assembly {
+                mstore(0x00, subjectId)
+                mstore(0x20, latestRecord.slot)
+                baseSlot := keccak256(0x00, 0x40)
+            }
+            // Zero all slots first (12 fields, some packed)
+            for (uint256 i = 0; i < 12; i++) {
+                bytes32 slot = bytes32(uint256(baseSlot) + i);
+                assembly { sstore(slot, 0) }
+                // Zero long-string data slot too
+                assembly {
+                    mstore(0x00, slot)
+                    sstore(keccak256(0x00, 0x20), 0)
+                }
+            }
+        }
+        // Now safe to assign — old slots are zeroed, no corrupted strings
         latestRecord[subjectId] = record;
 
+        // For recordHistory, zero the target element slot before pushing
+        {
+            uint256 len = recordHistory[subjectId].length;
+            bytes32 arraySlot;
+            assembly {
+                mstore(0x00, subjectId)
+                mstore(0x20, recordHistory.slot)
+                arraySlot := keccak256(0x00, 0x40)
+            }
+            // Zero the slot where the new element will be written
+            // Each SentimentRecord takes 12 slots; new element at index `len`
+            bytes32 elemBase;
+            assembly {
+                mstore(0x00, arraySlot)
+                let dataStart := keccak256(0x00, 0x20)
+                elemBase := add(dataStart, mul(len, 12))
+            }
+            for (uint256 i = 0; i < 12; i++) {
+                bytes32 slot = bytes32(uint256(elemBase) + i);
+                assembly { sstore(slot, 0) }
+                assembly {
+                    mstore(0x00, slot)
+                    sstore(keccak256(0x00, 0x20), 0)
+                }
+            }
+        }
         recordHistory[subjectId].push(record);
 
         if (recordHistory[subjectId].length > MAX_HISTORY) {
