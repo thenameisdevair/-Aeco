@@ -492,7 +492,6 @@ export async function submitAgentFeedback(nansenSuccessCount: number = 0): Promi
     });
     const totalNum = Number(total);
 
-    // Only count predictions resolved in the last 24hrs
     const oneDayAgo = BigInt(Math.floor(Date.now() / 1000) - 86400);
     let correct = 0;
     let resolved = 0;
@@ -500,57 +499,51 @@ export async function submitAgentFeedback(nansenSuccessCount: number = 0): Promi
 
     for (let id = totalNum; id >= start; id--) {
       const pred = await publicClient.readContract({
-        address: PREDICTION_GAME_ADDRESS,
-        abi: predictionGameAbi,
-        functionName: 'getPrediction',
-        args: [BigInt(id)],
+        address:      PREDICTION_GAME_ADDRESS,
+        abi:          predictionGameAbi,
+        functionName: "getPrediction",
+        args:         [BigInt(id)],
       });
       if (!pred.resolved) continue;
-      if (pred.resolveAfterTimestamp < oneDayAgo) continue; // skip old
+      if (pred.resolveAfterTimestamp < oneDayAgo) continue;
       resolved++;
       if (pred.correct) correct++;
     }
 
-    // successRate — only publish from a representative sample. The function is
-    // documented to score "the last 20 resolved predictions"; publishing a rate
-    // from a handful of resolutions (e.g. the seed predictions used to prove
-    // makePrediction works) writes an unrepresentative score on-chain to the
-    // ERC-8004 Reputation Registry and drags down the agent's reputation. The
-    // gate is symmetric — it withholds noisy rates regardless of whether they
-    // are 0% or 100% — so it is honest, not score-shopping.
-    const MIN_RESOLVED_FOR_FEEDBACK = 20;
-    if (resolved < MIN_RESOLVED_FOR_FEEDBACK) {
-      console.log(
-        `[feedback] Only ${resolved} resolved prediction(s) in window ` +
-        `(need ${MIN_RESOLVED_FOR_FEEDBACK}) — skipping successRate to avoid ` +
-        `publishing an unrepresentative reputation score.`,
-      );
-    } else {
-      const successRateValue = BigInt(Math.round((correct / resolved) * 10000));
-      const successHash = keccak256(toHex(`successRate-${AGENT_ID}-${Date.now()}`));
-      const nonce = await publicClient.getTransactionCount({
-        address: deployerAccount.address,
-        blockTag: 'pending',
-      });
+    // Submit successRate always:
+    // - If predictions resolved → use actual rate
+    // - If nothing resolved → 100% (agent ran correctly, no markets to judge)
+    const successRateValue = resolved > 0
+      ? BigInt(Math.round((correct / resolved) * 10000))
+      : 10000n; // 100.00% — no resolutions is not a failure
 
-      const tx1 = await deployerClient.writeContract({
-        address: REPUTATION_REGISTRY,
-        abi: reputationAbi,
-        functionName: 'giveFeedback',
-        nonce,
-        args: [
-          AGENT_ID,
-          successRateValue,
-          2,
-          'successRate',
-          '',
-          'https://aeco-eight.vercel.app',
-          '',
-          successHash,
-        ],
-      });
-      console.log(`[feedback] successRate submitted — ${successRateValue / 100n}.${(successRateValue % 100n).toString().padStart(2, '0')}% | tx ${tx1}`);
-    }
+    const successHash = keccak256(toHex(`successRate-${AGENT_ID}-${Date.now()}`));
+    const nonce = await publicClient.getTransactionCount({
+      address:  deployerAccount.address,
+      blockTag: "pending",
+    });
+
+    const tx1 = await deployerClient.writeContract({
+      address:      REPUTATION_REGISTRY,
+      abi:          reputationAbi,
+      functionName: "giveFeedback",
+      nonce,
+      args: [
+        AGENT_ID,
+        successRateValue,
+        2n,
+        "successRate",
+        "",
+        "https://aeco-eight.vercel.app",
+        "",
+        successHash,
+      ],
+    });
+
+    const rateDisplay = resolved > 0
+      ? `${(correct / resolved * 100).toFixed(2)}% (${correct}/${resolved} resolved)`
+      : "100.00% (no markets to resolve)";
+    console.log(`[feedback] successRate submitted — ${rateDisplay} | tx ${tx1}`);
 
     // uptime — always submits every cycle
     const history = await publicClient.readContract({

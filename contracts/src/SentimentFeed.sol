@@ -98,7 +98,7 @@ contract SentimentFeed is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     uint256 public constant MAX_HISTORY = 50;
 
     /// @notice Semantic version of this implementation contract.
-    string public constant CONTRACT_VERSION = "2.1.0";
+    string public constant CONTRACT_VERSION = "2.2.0";
 
     // ─────────────────────────────────────────────────────────────────────────
     // State
@@ -421,6 +421,22 @@ contract SentimentFeed is Initializable, AccessControlUpgradeable, UUPSUpgradeab
             let arraySlot := keccak256(0x00, 0x40)
             sstore(arraySlot, 0)  // zero the length — array is now empty
         }
+    }
+
+    /**
+     * @notice Clears the latestRecord mapping entry for a subject.
+     * @dev Called alongside clearHistory after a UUPS upgrade that changes
+     *      the SentimentRecord struct layout. The latestRecord mapping holds
+     *      old V1-encoded records that cause storage decoding panics when
+     *      postSentiment reads them to compute deltaFromLast.
+     *      Only callable by DEFAULT_ADMIN_ROLE.
+     * @param subjectId Subject whose latestRecord to clear.
+     */
+    function clearLatest(uint256 subjectId)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        delete latestRecord[subjectId];
     }
 
     // ─────────────────────────────────────────────────────────────────────────
