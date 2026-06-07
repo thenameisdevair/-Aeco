@@ -1096,17 +1096,124 @@ footer {
   </div>
 </footer>
 
-<script>
-/* ── Oracle data ──────────────────────────────── */
+<script type="module">
+/* ── Live oracle data from chain ──────────────── */
+async function loadLiveData() {
+  try {
+    // Dynamically import viem from CDN
+    const { createPublicClient, http } = await import('https://esm.sh/viem@2.50.4');
+
+    const client = createPublicClient({
+      chain: {
+        id: 42220,
+        name: 'Celo',
+        nativeCurrency: { name: 'CELO', symbol: 'CELO', decimals: 18 },
+        rpcUrls: { default: { http: ['https://forno.celo.org'] } },
+      },
+      transport: http('https://forno.celo.org'),
+    });
+
+    const SENTIMENT_FEED = '0x0684191E2e8Ac149F0073875242af19eC08D0724';
+    const HYBRID_SUBJECTS = new Set([4, 5, 9]);
+
+    const SENTIMENT_ABI = [{
+      name: 'getAllSubjects',
+      type: 'function',
+      stateMutability: 'view',
+      inputs: [],
+      outputs: [{ name: 'all', type: 'tuple[]', components: [
+        { name: 'id', type: 'uint256' },
+        { name: 'name', type: 'string' },
+        { name: 'category', type: 'uint8' },
+        { name: 'isActive', type: 'bool' },
+      ]}],
+    }, {
+      name: 'getLatest',
+      type: 'function',
+      stateMutability: 'view',
+      inputs: [{ name: 'subjectId', type: 'uint256' }],
+      outputs: [{ name: '', type: 'tuple', components: [
+        { name: 'subjectId',     type: 'uint256' },
+        { name: 'score',         type: 'uint8'   },
+        { name: 'signal',        type: 'uint8'   },
+        { name: 'confidence',    type: 'uint8'   },
+        { name: 'summary',       type: 'string'  },
+        { name: 'sourceType',    type: 'string'  },
+        { name: 'timestamp',     type: 'uint256' },
+        { name: 'deltaFromLast', type: 'int8'    },
+        { name: 'agentVersion',  type: 'string'  },
+        { name: 'socialScore',   type: 'uint8'   },
+        { name: 'nansenFlow',    type: 'int256'  },
+        { name: 'divergenceFlag', type: 'bool'   },
+      ]}],
+    }];
+
+    const SIGNAL_MAP = { 0: 'NEUTRAL', 1: 'BULLISH', 2: 'BEARISH' };
+    const CAT_MAP    = { 1: 'ASSET', 2: 'PERSON', 3: 'NARRATIVE' };
+
+    const allSubjects = await client.readContract({
+      address: SENTIMENT_FEED,
+      abi: SENTIMENT_ABI,
+      functionName: 'getAllSubjects',
+    });
+
+    const records = await Promise.all(
+      allSubjects
+        .filter(s => s.isActive)
+        .map(async s => {
+          try {
+            const rec = await client.readContract({
+              address: SENTIMENT_FEED,
+              abi: SENTIMENT_ABI,
+              functionName: 'getLatest',
+              args: [s.id],
+            });
+            if (!rec || rec.timestamp === 0n) return null;
+
+            const flow = Number(rec.nansenFlow);
+            const isHybrid = HYBRID_SUBJECTS.has(Number(s.id));
+            const flowLabel = isHybrid
+              ? (flow > 0 ? `↑ SM Accumulating $${(Math.abs(flow)/1000).toFixed(0)}K`
+                : flow < 0 ? `↓ SM Distributing $${(Math.abs(flow)/1000).toFixed(0)}K`
+                : '→ SM Neutral')
+              : null;
+            const divergence = isHybrid && rec.divergenceFlag;
+
+            return {
+              subject:    s.name,
+              cat:        CAT_MAP[rec.signal !== undefined ? Number(s.category) : 1] ?? 'ASSET',
+              signal:     SIGNAL_MAP[rec.signal] ?? 'NEUTRAL',
+              score:      rec.score,
+              summary:    rec.summary,
+              isHybrid,
+              flowLabel,
+              divergence,
+            };
+          } catch { return null; }
+        })
+    );
+
+    const liveData = records.filter(Boolean);
+    if (liveData.length > 0) {
+      document.getElementById('oracleGrid').innerHTML = liveData.map(buildCard).join('');
+      // Re-observe new cards for scroll animations
+      document.querySelectorAll('.fade-up').forEach(el => io.observe(el));
+    }
+  } catch (err) {
+    console.error('[oracle] Live data fetch failed, keeping static fallback:', err);
+  }
+}
+
+// Static fallback while live data loads
 const ORACLE = [
-  { subject: 'CELO',                  cat: 'ASSET',     signal: 'NEUTRAL', score: 52, summary: 'Mild price gain with little recent social buzz' },
-  { subject: 'cUSD',                  cat: 'ASSET',     signal: 'NEUTRAL', score: 50, summary: 'Minimal activity, stable peg maintained' },
-  { subject: 'cKES',                  cat: 'ASSET',     signal: 'NEUTRAL', score: 48, summary: 'Sparse mentions, stablecoin routing tools only' },
-  { subject: 'BTC',                   cat: 'ASSET',     signal: 'BEARISH', score: 38, summary: 'ETF outflows and macro tension weigh on sentiment' },
-  { subject: 'ETH',                   cat: 'ASSET',     signal: 'BEARISH', score: 32, summary: 'Foundation exits and institutional selling pressure' },
-  { subject: 'Vitalik Buterin',       cat: 'PERSON',    signal: 'BULLISH', score: 78, summary: 'Optimistic posts on ZK rollups and AI verification' },
-  { subject: 'Stablecoin Regulation', cat: 'NARRATIVE', signal: 'NEUTRAL', score: 52, summary: 'Senate momentum building, outcome still uncertain' },
-  { subject: 'Africa Crypto Adoption',cat: 'NARRATIVE', signal: 'BULLISH', score: 72, summary: 'Remittance partnerships driving positive momentum' },
+  { subject: 'CELO',                  cat: 'ASSET',     signal: 'NEUTRAL', score: 52, summary: 'Loading live data...' },
+  { subject: 'cUSD',                  cat: 'ASSET',     signal: 'NEUTRAL', score: 50, summary: 'Loading live data...' },
+  { subject: 'cKES',                  cat: 'ASSET',     signal: 'NEUTRAL', score: 48, summary: 'Loading live data...' },
+  { subject: 'BTC',                   cat: 'ASSET',     signal: 'NEUTRAL', score: 50, summary: 'Loading live data...' },
+  { subject: 'ETH',                   cat: 'ASSET',     signal: 'NEUTRAL', score: 50, summary: 'Loading live data...' },
+  { subject: 'Vitalik Buterin',       cat: 'PERSON',    signal: 'NEUTRAL', score: 50, summary: 'Loading live data...' },
+  { subject: 'Stablecoin Regulation', cat: 'NARRATIVE', signal: 'NEUTRAL', score: 50, summary: 'Loading live data...' },
+  { subject: 'Africa Crypto Adoption',cat: 'NARRATIVE', signal: 'NEUTRAL', score: 50, summary: 'Loading live data...' },
 ];
 
 const COLORS = { BULLISH: '#22c55e', BEARISH: '#ef4444', NEUTRAL: '#6b7280' };
@@ -1144,12 +1251,25 @@ function buildGauge(score, signal) {
 }
 
 function buildCard(d, i) {
+  const sourceBadge = d.isHybrid
+    ? `<span class="badge" style="background:rgba(99,102,241,0.15);color:#818cf8;font-size:9px;padding:2px 5px;border-radius:3px;">⬡ HYBRID</span>`
+    : `<span class="badge" style="background:rgba(156,163,175,0.08);color:#6b7280;font-size:9px;padding:2px 5px;border-radius:3px;">SOCIAL</span>`;
+
+  const flowLine = d.flowLabel
+    ? `<p style="font-size:10.5px;color:${d.flowLabel.startsWith('↑') ? '#22c55e' : d.flowLabel.startsWith('↓') ? '#ef4444' : '#6b7280'};margin:4px 0 0;">${d.flowLabel}</p>`
+    : '';
+
+  const divergenceAlert = d.divergence
+    ? `<p style="font-size:10px;color:#f59e0b;background:rgba(245,158,11,0.08);border-radius:4px;padding:3px 7px;margin-top:4px;">⚠ Social vs Smart Money divergence</p>`
+    : '';
+
   return `
 <div class="oracle-card fade-up" role="listitem" style="transition-delay:${i * 50}ms">
   <div class="oc-top">
     <div class="oc-subject">${d.subject}</div>
     <div class="oc-badges">
       <span class="badge b-cat">${d.cat}</span>
+      ${sourceBadge}
       <span class="badge ${SIG_CLS[d.signal]}">${d.signal}</span>
     </div>
   </div>
@@ -1160,11 +1280,15 @@ function buildCard(d, i) {
     </div>
   </div>
   <p class="oc-summary">&ldquo;${d.summary}&rdquo;</p>
+  ${flowLine}
+  ${divergenceAlert}
 </div>`;
 }
 
 /* ── Render oracle grid ───────────────────────── */
 document.getElementById('oracleGrid').innerHTML = ORACLE.map(buildCard).join('');
+// Load live chain data (replaces static fallback when ready)
+loadLiveData();
 
 /* ── Hero headline word split ─────────────────── */
 const HEADLINE_TEXT = 'The AI that reads the world. Writes to Celo.';
