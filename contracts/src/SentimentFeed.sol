@@ -406,7 +406,21 @@ contract SentimentFeed is Initializable, AccessControlUpgradeable, UUPSUpgradeab
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        delete recordHistory[subjectId];
+        // Use assembly to directly zero the array length slot in storage,
+        // bypassing the element-by-element iteration that `delete` performs.
+        // This avoids the storage decoding panic caused by V1-encoded records
+        // that are incompatible with the V2 SentimentRecord struct layout.
+        assembly {
+            // Compute the storage slot of recordHistory[subjectId].
+            // recordHistory is a mapping(uint256 => SentimentRecord[]).
+            // The slot of recordHistory itself is its declared position in storage.
+            // For a mapping, keccak256(abi.encode(key, slot)) gives the value slot.
+            // For a dynamic array, that value slot holds the length.
+            mstore(0x00, subjectId)
+            mstore(0x20, recordHistory.slot)
+            let arraySlot := keccak256(0x00, 0x40)
+            sstore(arraySlot, 0)  // zero the length — array is now empty
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
