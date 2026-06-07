@@ -22,22 +22,22 @@
 /** Raw response object from the Flow Intelligence endpoint (single array element). */
 export interface FlowIntelligence {
   public_figure_net_flow_usd:    number;
-  public_figure_avg_flow_usd:    number;
+  public_figure_avg_flow_usd:    number | null;
   public_figure_wallet_count:    number;
   top_pnl_net_flow_usd:          number;
-  top_pnl_avg_flow_usd:          number;
+  top_pnl_avg_flow_usd:          number | null;
   top_pnl_wallet_count:          number;
   whale_net_flow_usd:            number;
-  whale_avg_flow_usd:            number;
+  whale_avg_flow_usd:            number | null;
   whale_wallet_count:            number;
   smart_trader_net_flow_usd:     number;
-  smart_trader_avg_flow_usd:     number;
+  smart_trader_avg_flow_usd:     number | null;
   smart_trader_wallet_count:     number;
   exchange_net_flow_usd:         number;
-  exchange_avg_flow_usd:         number;
+  exchange_avg_flow_usd:         number | null;
   exchange_wallet_count:         number;
   fresh_wallets_net_flow_usd:    number;
-  fresh_wallets_avg_flow_usd:    number;
+  fresh_wallets_avg_flow_usd:    number | null;
   fresh_wallets_wallet_count:    number;
 }
 
@@ -113,19 +113,16 @@ export async function getFlowIntelligence(
 
   const item = json.data[0];
 
-  const flowFields: Array<keyof FlowIntelligence> = [
-    "public_figure_net_flow_usd", "public_figure_avg_flow_usd", "public_figure_wallet_count",
-    "top_pnl_net_flow_usd",       "top_pnl_avg_flow_usd",       "top_pnl_wallet_count",
-    "whale_net_flow_usd",         "whale_avg_flow_usd",          "whale_wallet_count",
-    "smart_trader_net_flow_usd",  "smart_trader_avg_flow_usd",   "smart_trader_wallet_count",
-    "exchange_net_flow_usd",      "exchange_avg_flow_usd",        "exchange_wallet_count",
-    "fresh_wallets_net_flow_usd", "fresh_wallets_avg_flow_usd",  "fresh_wallets_wallet_count",
+  // Only validate fields used in computeFlowSignal — avg fields can be null
+  const requiredFields: (keyof FlowIntelligence)[] = [
+    "smart_trader_net_flow_usd",
+    "top_pnl_net_flow_usd",
+    "whale_net_flow_usd",
   ];
 
-  const raw = item as unknown as Record<string, unknown>;
-  for (const field of flowFields) {
-    if (typeof raw[field] !== "number") {
-      console.error(`[nansen] Missing or non-numeric field "${field}" in response:`, raw);
+  for (const field of requiredFields) {
+    if (typeof item[field] !== "number") {
+      console.error(`[nansen] Missing or non-numeric required field "${field}" in response:`, item);
       return null;
     }
   }
