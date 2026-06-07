@@ -98,7 +98,7 @@ contract SentimentFeed is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     uint256 public constant MAX_HISTORY = 50;
 
     /// @notice Semantic version of this implementation contract.
-    string public constant CONTRACT_VERSION = "2.0.0";
+    string public constant CONTRACT_VERSION = "2.1.0";
 
     // ─────────────────────────────────────────────────────────────────────────
     // State
@@ -392,6 +392,21 @@ contract SentimentFeed is Initializable, AccessControlUpgradeable, UUPSUpgradeab
             history[i] = history[i + 1];
         }
         history.pop();
+    }
+
+    /**
+     * @notice Clears the recordHistory array for a subject.
+     * @dev Called once after a UUPS upgrade that changes the SentimentRecord
+     *      struct layout, to remove old-format encoded records that would cause
+     *      storage decoding errors when _shiftHistory copies them.
+     *      Only callable by DEFAULT_ADMIN_ROLE.
+     * @param subjectId Subject whose history to clear.
+     */
+    function clearHistory(uint256 subjectId)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        delete recordHistory[subjectId];
     }
 
     // ─────────────────────────────────────────────────────────────────────────
