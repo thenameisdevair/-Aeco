@@ -466,6 +466,7 @@ function BottomTabBar({ active, onChange, accent }) {
 
 /* ===================== Root app ===================== */
 function MobileApp({ t, setTweak }) {
+  const [dataVersion, setDataVersion] = React.useState(0);
   const [activeTab, setActiveTab] = useState('feed');
   const [modalSubject, setModalSubject] = useState(() => t.openModalOnLaunch ? window.SUBJECTS[0] : null);
   const [filter, setFilter] = useState('ALL');
@@ -490,6 +491,13 @@ function MobileApp({ t, setTweak }) {
       }
     }
     connectMiniPay();
+  }, []);
+
+  // Re-render when live chain data replaces the static fallback
+  React.useEffect(() => {
+    function onDataReady() { setDataVersion(v => v + 1); }
+    window.addEventListener('aeco:dataReady', onDataReady);
+    return () => window.removeEventListener('aeco:dataReady', onDataReady);
   }, []);
 
   // animation speed CSS variable on root
