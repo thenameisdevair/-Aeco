@@ -646,30 +646,11 @@ export async function recordHeartbeat(
   try {
     const nonce = await publicClient.getTransactionCount({ address: agentAccount.address, blockTag: "pending" });
 
-    // HeartbeatOracle.recordHeartbeat triggers an O(n) _shiftHistory once the
-    // 100-entry history cap is reached: it copies ~99 string-bearing structs
-    // slot-by-slot (~6-7M gas). forno's eth_estimateGas can't bracket that — it
-    // reverts empty ("0x") and viem never sends a tx. We therefore set an
-    // explicit gas limit to bypass estimation entirely.
-    //
-    // The fee is derived from the live base fee rather than viem's auto value
-    // (forno reports an inflated ~480 gwei, which makes gas×fee exceed the
-    // wallet balance) or a flat cap (5 gwei was rejected as "below the minimum
-    // base fee" by the OP-Stack sequencer). maxFeePerGas = 2×baseFee + priority
-    // clears the sequencer minimum while keeping the reservation small.
-    const block        = await publicClient.getBlock({ blockTag: "latest" });
-    const baseFee      = block.baseFeePerGas ?? 5_000_000_000n; // 5 gwei fallback
-    const priorityFee  = 2_000_000_000n;                         // 2 gwei tip
-    const maxFeePerGas = baseFee * 2n + priorityFee;
-
     const txHash = await walletClient.writeContract({
       address:      HEARTBEAT_ORACLE_ADDRESS,
       abi:          heartbeatOracleAbi,
       functionName: "recordHeartbeat",
       nonce,
-      gas:                  15_000_000n,   // bypass estimation; covers full-history shift
-      maxFeePerGas,
-      maxPriorityFeePerGas: priorityFee,
       args:         [BigInt(subjectsScanned), significantChange, statusMessage],
     });
 
