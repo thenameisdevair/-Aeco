@@ -98,7 +98,7 @@ contract SentimentFeed is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     uint256 public constant MAX_HISTORY = 50;
 
     /// @notice Semantic version of this implementation contract.
-    string public constant CONTRACT_VERSION = "2.4.0";
+    string public constant CONTRACT_VERSION = "2.5.0";
 
     // ─────────────────────────────────────────────────────────────────────────
     // State
@@ -336,7 +336,7 @@ contract SentimentFeed is Initializable, AccessControlUpgradeable, UUPSUpgradeab
             assembly {
                 mstore(0x00, arraySlot)
                 let dataStart := keccak256(0x00, 0x20)
-                elemBase := add(dataStart, mul(len, 12))
+                elemBase := add(dataStart, mul(len, 10))
             }
             for (uint256 i = 0; i < 12; i++) {
                 bytes32 slot = bytes32(uint256(elemBase) + i);
