@@ -98,7 +98,7 @@ contract SentimentFeed is Initializable, AccessControlUpgradeable, UUPSUpgradeab
     uint256 public constant MAX_HISTORY = 50;
 
     /// @notice Semantic version of this implementation contract.
-    string public constant CONTRACT_VERSION = "2.2.0";
+    string public constant CONTRACT_VERSION = "2.3.0";
 
     // ─────────────────────────────────────────────────────────────────────────
     // State
@@ -436,7 +436,34 @@ contract SentimentFeed is Initializable, AccessControlUpgradeable, UUPSUpgradeab
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        delete latestRecord[subjectId];
+        // Use assembly to directly zero storage slots without reading them.
+        // The struct contains string fields that may be corrupted (V1 encoding
+        // incompatible with V2 layout). A Solidity `delete` would read the struct
+        // first to free dynamic data — triggering a storage panic on corrupt data.
+        // Instead we zero the struct's base slot range directly.
+        //
+        // SentimentRecord has 12 fields. Strings occupy 1 slot each (length/inline).
+        // Long strings (>31 bytes) also have data at keccak256(slot) — we zero those too.
+        // Struct base slot: keccak256(abi.encode(subjectId, latestRecord.slot))
+
+        bytes32 baseSlot;
+        assembly {
+            mstore(0x00, subjectId)
+            mstore(0x20, latestRecord.slot)
+            baseSlot := keccak256(0x00, 0x40)
+        }
+
+        // Zero all 12 struct field slots (0 through 11)
+        for (uint256 i = 0; i < 12; i++) {
+            bytes32 slot = bytes32(uint256(baseSlot) + i);
+            assembly { sstore(slot, 0) }
+            // Also zero the long-string data slot for this position
+            // (harmless if it was a short string or non-string field)
+            assembly {
+                mstore(0x00, slot)
+                sstore(keccak256(0x00, 0x20), 0)
+            }
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
