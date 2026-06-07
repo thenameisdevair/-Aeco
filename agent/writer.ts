@@ -425,9 +425,8 @@ export async function resolveExpiredPredictions(): Promise<void> {
   if (totalNum === 0) return;
 
   const nowSeconds = BigInt(Math.floor(Date.now() / 1000));
-  const start = Math.max(1, totalNum - 19);
 
-  for (let id = totalNum; id >= start; id--) {
+  for (let id = 1; id <= totalNum; id++) {
     try {
       const pred = await publicClient.readContract({
         address:      PREDICTION_GAME_ADDRESS,
@@ -506,6 +505,12 @@ export async function submitAgentFeedback(nansenSuccessCount: number = 0): Promi
       });
       if (!pred.resolved) continue;
       if (pred.resolveAfterTimestamp < oneDayAgo) continue;
+      // Exclude predictions made by the agent or deployer wallet — test/seeded data,
+      // not real user activity. Only real external predictions count toward successRate.
+      if (
+        pred.user.toLowerCase() === agentAccount.address.toLowerCase() ||
+        pred.user.toLowerCase() === deployerAccount.address.toLowerCase()
+      ) continue;
       resolved++;
       if (pred.correct) correct++;
     }
@@ -544,6 +549,10 @@ export async function submitAgentFeedback(nansenSuccessCount: number = 0): Promi
       ? `${(correct / resolved * 100).toFixed(2)}% (${correct}/${resolved} resolved)`
       : "100.00% (no markets to resolve)";
     console.log(`[feedback] successRate submitted — ${rateDisplay} | tx ${tx1}`);
+    // Wait for successRate tx to confirm before submitting uptime.
+    // Both use the deployer wallet — sequential nonce contention causes uptime
+    // to defer if successRate is still pending when uptime fetches the nonce.
+    await publicClient.waitForTransactionReceipt({ hash: tx1 });
 
     // uptime — always submits every cycle
     const history = await publicClient.readContract({
