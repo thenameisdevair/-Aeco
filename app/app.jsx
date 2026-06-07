@@ -905,6 +905,15 @@ function App() {
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
+  // Update subjects when live chain data replaces static fallback
+  useEffect(() => {
+    function onDataReady() {
+      setSubjects([...window.SUBJECTS]);
+    }
+    window.addEventListener('aeco:dataReady', onDataReady);
+    return () => window.removeEventListener('aeco:dataReady', onDataReady);
+  }, []);
+
   // Auto-connect when running inside MiniPay (provider is available immediately on page load).
   // MiniPay only supports legacy transactions — use type: 'legacy' and omit
   // maxFeePerGas/maxPriorityFeePerGas when building any transaction for predictions.

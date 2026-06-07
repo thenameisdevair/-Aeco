@@ -195,6 +195,7 @@ function SentimentCard({ subject, index, onPredict }) {
             <div className="flex items-center gap-2 mb-1">
               <h3 className="text-[15px] font-semibold text-white truncate">{name}</h3>
               <CategoryBadge category={category} />
+              <SourceBadge isHybrid={subject.isHybrid} />
             </div>
             <div className="font-mono text-[11px] text-muted truncate">{subject.ticker}</div>
           </div>
@@ -235,6 +236,8 @@ function SentimentCard({ subject, index, onPredict }) {
         <p className="text-[12.5px] leading-relaxed text-gray-400 italic mb-4 min-h-[34px]">
           "{summary}"
         </p>
+        <NansenFlow nansenFlow={subject.nansenFlow} isHybrid={subject.isHybrid} />
+        <DivergenceAlert divergenceFlag={subject.divergenceFlag} isHybrid={subject.isHybrid} />
 
         {/* Bottom row */}
         <div className="flex items-center justify-between pt-3 border-t border-white/[0.04]">
@@ -702,9 +705,66 @@ function HowToEarnModal({ onClose }) {
   );
 }
 
+function SourceBadge({ isHybrid }) {
+  if (isHybrid === undefined) return null;
+  return isHybrid ? (
+    <span style={{
+      fontSize: '9.5px', fontWeight: 600, letterSpacing: '0.04em',
+      padding: '2px 6px', borderRadius: '4px',
+      background: 'rgba(99,102,241,0.15)', color: '#818cf8',
+      boxShadow: 'inset 0 0 0 1px rgba(99,102,241,0.30)',
+      textTransform: 'uppercase',
+    }}>⬡ Hybrid</span>
+  ) : (
+    <span style={{
+      fontSize: '9.5px', fontWeight: 600, letterSpacing: '0.04em',
+      padding: '2px 6px', borderRadius: '4px',
+      background: 'rgba(156,163,175,0.08)', color: '#6b7280',
+      boxShadow: 'inset 0 0 0 1px rgba(156,163,175,0.15)',
+      textTransform: 'uppercase',
+    }}>Social</span>
+  );
+}
+
+function NansenFlow({ nansenFlow, isHybrid }) {
+  if (!isHybrid || nansenFlow === undefined) return null;
+  const flow = typeof nansenFlow === 'bigint' ? Number(nansenFlow) : Number(nansenFlow);
+  if (flow === 0) return null;
+  const isPositive = flow > 0;
+  const color  = isPositive ? '#22c55e' : '#ef4444';
+  const arrow  = isPositive ? '↑' : '↓';
+  const label  = isPositive ? 'Accumulating' : 'Distributing';
+  const abs    = Math.abs(flow);
+  const formatted = abs >= 1_000_000 ? `$${(abs/1_000_000).toFixed(1)}M`
+                  : abs >= 1_000     ? `$${(abs/1_000).toFixed(1)}K`
+                  : `$${abs.toFixed(0)}`;
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:'4px',
+      fontSize:'10.5px', color, fontWeight:500, marginTop:'4px' }}>
+      <span>{arrow}</span>
+      <span>SM {label}</span>
+      <span style={{ color:'#6b7280', fontWeight:400 }}>{formatted}</span>
+    </div>
+  );
+}
+
+function DivergenceAlert({ divergenceFlag, isHybrid }) {
+  if (!isHybrid || !divergenceFlag) return null;
+  return (
+    <div style={{
+      display:'flex', alignItems:'center', gap:'5px',
+      fontSize:'10px', color:'#f59e0b',
+      background:'rgba(245,158,11,0.08)',
+      boxShadow:'inset 0 0 0 1px rgba(245,158,11,0.20)',
+      borderRadius:'6px', padding:'4px 8px', marginTop:'4px', fontWeight:500,
+    }}>⚠ Social vs Smart Money divergence</div>
+  );
+}
+
 Object.assign(window, {
   FadeIn, CountUp, ArcGauge, CategoryBadge, SignalBadge, ConfidenceBar,
   SentimentCard, SectionHeader, ActivityRow, LeaderRow, PredictionModal,
   HowToEarnModal,
   signalColor, signalBg, signalRing,
+  SourceBadge, NansenFlow, DivergenceAlert,
 });
