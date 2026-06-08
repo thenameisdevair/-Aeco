@@ -484,6 +484,11 @@ export async function submitAgentFeedback(nansenSuccessCount: number = 0): Promi
 
   try {
     // ── successRate ──────────────────────────────────────────────────────────
+    // Measures agent reliability: of all predictions that passed their
+    // resolution window, what % did the agent actually resolve?
+    // This is 100% if the agent resolved everything on time — correct/wrong
+    // predictions don't affect this metric, only operational reliability does.
+
     const total = await publicClient.readContract({
       address:      PREDICTION_GAME_ADDRESS,
       abi:          predictionGameAbi,
@@ -491,36 +496,35 @@ export async function submitAgentFeedback(nansenSuccessCount: number = 0): Promi
     });
     const totalNum = Number(total);
 
-    const oneDayAgo = BigInt(Math.floor(Date.now() / 1000) - 86400);
-    let correct = 0;
+    const nowSeconds = BigInt(Math.floor(Date.now() / 1000));
+    let expired  = 0;
     let resolved = 0;
-    const start = Math.max(1, totalNum - 99);
 
-    for (let id = totalNum; id >= start; id--) {
-      const pred = await publicClient.readContract({
-        address:      PREDICTION_GAME_ADDRESS,
-        abi:          predictionGameAbi,
-        functionName: "getPrediction",
-        args:         [BigInt(id)],
-      });
-      if (!pred.resolved) continue;
-      if (pred.resolveAfterTimestamp < oneDayAgo) continue;
-      // Exclude predictions made by the agent or deployer wallet — test/seeded data,
-      // not real user activity. Only real external predictions count toward successRate.
-      if (
-        pred.user.toLowerCase() === agentAccount.address.toLowerCase() ||
-        pred.user.toLowerCase() === deployerAccount.address.toLowerCase()
-      ) continue;
-      resolved++;
-      if (pred.correct) correct++;
+    for (let id = 1; id <= totalNum; id++) {
+      try {
+        const pred = await publicClient.readContract({
+          address:      PREDICTION_GAME_ADDRESS,
+          abi:          predictionGameAbi,
+          functionName: "getPrediction",
+          args:         [BigInt(id)],
+        });
+        // Skip self-predictions — agent/deployer wallet test data
+        if (
+          pred.user.toLowerCase() === agentAccount.address.toLowerCase() ||
+          pred.user.toLowerCase() === deployerAccount.address.toLowerCase()
+        ) continue;
+        // Count predictions that have passed their resolution window
+        if (pred.resolveAfterTimestamp <= nowSeconds) {
+          expired++;
+          if (pred.resolved) resolved++;
+        }
+      } catch { continue; }
     }
 
-    // Submit successRate always:
-    // - If predictions resolved → use actual rate
-    // - If nothing resolved → 100% (agent ran correctly, no markets to judge)
-    const successRateValue = resolved > 0
-      ? BigInt(Math.round((correct / resolved) * 10000))
-      : 10000n; // 100.00% — no resolutions is not a failure
+    // If no external predictions have expired yet, agent is 100% reliable
+    const successRateValue = expired > 0
+      ? BigInt(Math.round((resolved / expired) * 10000))
+      : 10000n;
 
     const successHash = keccak256(toHex(`successRate-${AGENT_ID}-${Date.now()}`));
     const nonce = await publicClient.getTransactionCount({
@@ -545,13 +549,11 @@ export async function submitAgentFeedback(nansenSuccessCount: number = 0): Promi
       ],
     });
 
-    const rateDisplay = resolved > 0
-      ? `${(correct / resolved * 100).toFixed(2)}% (${correct}/${resolved} resolved)`
-      : "100.00% (no markets to resolve)";
+    const rateDisplay = expired > 0
+      ? `${(resolved / expired * 100).toFixed(2)}% (${resolved}/${expired} external predictions resolved)`
+      : "100.00% (no external predictions expired yet)";
     console.log(`[feedback] successRate submitted — ${rateDisplay} | tx ${tx1}`);
-    // Wait for successRate tx to confirm before submitting uptime.
-    // Both use the deployer wallet — sequential nonce contention causes uptime
-    // to defer if successRate is still pending when uptime fetches the nonce.
+
     await publicClient.waitForTransactionReceipt({ hash: tx1 });
 
     // uptime — always submits every cycle
