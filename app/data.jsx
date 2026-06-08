@@ -72,15 +72,12 @@ window.SUBJECTS = [
       transport: http('https://forno.celo.org'),
     });
 
-    // Read recordHistory[subjectId].length directly from storage
-    // Uses keccak256(abi.encode(subjectId, 3)) where 3 = recordHistory mapping slot
     async function getHistoryLength(subjectId) {
       try {
-        // abi.encode(uint256 subjectId, uint256 slot) = 64 bytes, zero-padded
-        const keyHex  = BigInt(subjectId).toString(16).padStart(64, '0');
-        const slotHex = (3).toString(16).padStart(64, '0');
+        const keyHex     = BigInt(subjectId).toString(16).padStart(64, '0');
+        const slotHex    = (3).toString(16).padStart(64, '0');
         const lengthSlot = keccak256(`0x${keyHex}${slotHex}`);
-        const raw = await client.getStorageAt({
+        const raw        = await client.getStorageAt({
           address: SENTIMENT_FEED,
           slot:    lengthSlot,
         });
