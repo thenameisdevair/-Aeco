@@ -218,6 +218,107 @@ app.get("/health", (_req: Request, res: Response) => {
   });
 });
 
+// ── Well-known discovery endpoints ───────────────────────────────────────────
+// 8004scan pings these to verify agent service health
+
+app.get("/.well-known/agent-card.json", (_req: Request, res: Response) => {
+  res.json({
+    "@context":   "https://schema.org",
+    "@type":      "SoftwareAgent",
+    "name":       "Aeco Sentiment Oracle",
+    "version":    "2.0.0",
+    "description": "Autonomous AI agent posting real-time hybrid sentiment scores (Grok AI + Nansen Smart Money flows) for 9 crypto assets on Celo Mainnet every 2 hours.",
+    "url":        "https://aeco-eight.vercel.app",
+    "provider": {
+      "@type": "Organization",
+      "name":  "Aeco"
+    },
+    "protocol":   "A2A",
+    "protocolVersion": "0.3.0",
+    "capabilities": [
+      "sentiment-oracle",
+      "prediction-markets",
+      "hybrid-scoring",
+      "x402-payments"
+    ],
+    "endpoint":   "https://aeco.onrender.com",
+    "agentId":    9112,
+    "agentRegistry": "eip155:42220:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+    "chainId":    42220,
+    "status":     "active"
+  });
+});
+
+app.get("/.well-known/mcp.json", (_req: Request, res: Response) => {
+  res.json({
+    "name":        "Aeco Sentiment Oracle",
+    "version":     "2.0.0",
+    "description": "MCP server exposing Aeco sentiment oracle data for crypto assets, people, and narratives on Celo Mainnet.",
+    "protocol":    "MCP",
+    "protocolVersion": "2025-06-18",
+    "endpoint":    "https://aeco.onrender.com",
+    "tools": [
+      {
+        "name":        "get_sentiment",
+        "description": "Get the latest sentiment score for a subject (1-9)",
+        "endpoint":    "https://aeco.onrender.com/sentiment/{subjectId}",
+        "method":      "GET",
+        "payment":     "x402",
+        "price":       "$0.01 USDC on Base (subjects 4-9)"
+      },
+      {
+        "name":        "get_all_sentiment",
+        "description": "Get sentiment scores for all 9 subjects",
+        "endpoint":    "https://aeco.onrender.com/sentiment/all",
+        "method":      "GET",
+        "payment":     "x402",
+        "price":       "$0.05 USDC on Base"
+      },
+      {
+        "name":        "get_divergence",
+        "description": "Get subjects where social sentiment and Nansen Smart Money flows diverge",
+        "endpoint":    "https://aeco.onrender.com/divergence",
+        "method":      "GET",
+        "payment":     "x402",
+        "price":       "$0.02 USDC on Base"
+      },
+      {
+        "name":        "get_heartbeat",
+        "description": "Get agent heartbeat and operational status",
+        "endpoint":    "https://aeco.onrender.com/heartbeat",
+        "method":      "GET",
+        "payment":     "free"
+      }
+    ],
+    "agentId":       9112,
+    "agentRegistry": "eip155:42220:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+    "status":        "active"
+  });
+});
+
+app.get("/.well-known/oasf.json", (_req: Request, res: Response) => {
+  res.json({
+    "version": "0.8.0",
+    "skills": [
+      "natural_language_processing/information_retrieval_synthesis/search",
+      "tool_interaction/api_schema_understanding",
+      "tool_interaction/workflow_automation",
+      "data_analysis/time_series_analysis",
+      "data_analysis/quantitative_analysis"
+    ],
+    "domains": [
+      "technology/blockchain",
+      "finance_and_business/finance",
+      "finance_and_business/trading_and_investment"
+    ],
+    "agent": {
+      "id":       9112,
+      "name":     "Aeco Sentiment Oracle",
+      "registry": "eip155:42220:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432"
+    }
+  });
+});
+
 // ── GET /heartbeat ────────────────────────────────────────────────────────────
 
 app.get("/heartbeat", async (_req: Request, res: Response) => {
