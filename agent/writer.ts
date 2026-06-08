@@ -331,7 +331,7 @@ export function shouldPost(
     const nowSeconds      = Date.now() / 1000;
     // POST_INTERVAL_SECONDS overrides the default 6-hour repost window.
     // Set to 0 in CI/submission to always post when a prior record exists.
-    const intervalSeconds = parseInt(process.env["POST_INTERVAL_SECONDS"] ?? "21600", 10);
+    const intervalSeconds = parseInt(process.env["POST_INTERVAL_SECONDS"] ?? "7200", 10);
     if (lastPostTimestamp < nowSeconds - intervalSeconds) return true;
   }
 
