@@ -62,7 +62,14 @@ window.SUBJECTS = [
 // Load live data from chain
 (async () => {
   try {
-    const { createPublicClient, http, keccak256 } = await import('https://esm.sh/viem@2.50.4');
+    // Wait for viem to load from the module script tag
+    let viemWaitMs = 0;
+    while (!window.__viem && viemWaitMs < 5000) {
+      await new Promise(r => setTimeout(r, 100));
+      viemWaitMs += 100;
+    }
+    if (!window.__viem) throw new Error('viem not loaded');
+    const { createPublicClient, http, keccak256 } = window.__viem;
     const client = createPublicClient({
       chain: {
         id: 42220, name: 'Celo',
