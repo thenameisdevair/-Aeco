@@ -62,7 +62,7 @@ window.SUBJECTS = [
 // Load live data from chain
 (async () => {
   try {
-    const { createPublicClient, http } = await import('https://esm.sh/viem@2.50.4');
+    const { createPublicClient, http, keccak256 } = await import('https://esm.sh/viem@2.50.4');
     const client = createPublicClient({
       chain: {
         id: 42220, name: 'Celo',
@@ -71,6 +71,22 @@ window.SUBJECTS = [
       },
       transport: http('https://forno.celo.org'),
     });
+
+    // Read recordHistory[subjectId].length directly from storage
+    // Uses keccak256(abi.encode(subjectId, 3)) where 3 = recordHistory mapping slot
+    async function getHistoryLength(subjectId) {
+      try {
+        // abi.encode(uint256 subjectId, uint256 slot) = 64 bytes, zero-padded
+        const keyHex  = BigInt(subjectId).toString(16).padStart(64, '0');
+        const slotHex = (3).toString(16).padStart(64, '0');
+        const lengthSlot = keccak256(`0x${keyHex}${slotHex}`);
+        const raw = await client.getStorageAt({
+          address: SENTIMENT_FEED,
+          slot:    lengthSlot,
+        });
+        return raw ? parseInt(raw, 16) : 0;
+      } catch { return 0; }
+    }
 
     const allSubjects = await client.readContract({
       address: SENTIMENT_FEED, abi: SENTIMENT_ABI, functionName: 'getAllSubjects',
@@ -84,6 +100,7 @@ window.SUBJECTS = [
             functionName: 'getLatest', args: [s.id],
           });
           if (!rec || rec.timestamp === 0n) return null;
+          const historyLength = await getHistoryLength(Number(s.id));
           const isHybrid = HYBRID_SUBJECTS.has(Number(s.id));
           return {
             id:            s.name.toLowerCase().replace(/[\s.]+/g, '-'),
@@ -96,7 +113,7 @@ window.SUBJECTS = [
             summary:       rec.summary,
             updated:       timeAgo(rec.timestamp),
             delta:         rec.deltaFromLast,
-            posts:         0,
+            posts:         historyLength,
             isHybrid,
             nansenFlow:    rec.nansenFlow,
             divergenceFlag: rec.divergenceFlag,
