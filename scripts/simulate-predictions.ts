@@ -177,37 +177,70 @@ async function main() {
     const dirName   = direction === 1 ? "HIGHER" : "LOWER";
 
     try {
-      // Make prediction
+      // Time the prediction transaction — real confirmation latency
+      const predStart = Date.now();
+
       const predTx = await walletClient.writeContract({
         address:      PREDICTION_GAME,
         abi:          predictionAbi,
         functionName: "makePrediction",
         args:         [BigInt(subjectId), direction],
       });
-      console.log(`  ✓ Predicted ${dirName} for subject ${subjectId} | tx ${predTx}`);
 
-      await randomDelay(2000, 5000);
+      await publicClient.waitForTransactionReceipt({ hash: predTx });
+      const predMs = Date.now() - predStart;
 
-      // Submit feedback
-      const feedbackScore = 9000n; // 90.00% — positive user rating
-      const feedbackHash  = keccak256(toHex(`userRating-${account.address}-${Date.now()}`));
+      console.log(`  ✓ Predicted ${dirName} for subject ${subjectId} | ${predMs}ms | tx ${predTx}`);
 
-      const feedTx = await walletClient.writeContract({
+      // responseTime: scaled from actual confirmation latency
+      // <5s=100%, 5-10s=85%, 10-20s=70%, >20s=50%
+      const responseTimeScore =
+        predMs < 5_000  ? 10000n :
+        predMs < 10_000 ? 8500n  :
+        predMs < 20_000 ? 7000n  :
+                          5000n;
+
+      await randomDelay(1000, 3000);
+
+      // Feedback 1: responseTime — actual tx confirmation latency
+      const rtHash = keccak256(toHex(`responseTime-${account.address}-${Date.now()}`));
+      const rtTx = await walletClient.writeContract({
         address:      REPUTATION_REGISTRY,
         abi:          feedbackAbi,
         functionName: "giveFeedback",
         args: [
           AGENT_ID,
-          feedbackScore,
+          responseTimeScore,
           2n,
-          "userRating",
+          "responseTime",
           "",
           "https://aeco-eight.vercel.app",
           "",
-          feedbackHash,
+          rtHash,
         ],
       });
-      console.log(`  ✓ Submitted feedback (90.00%) | tx ${feedTx}`);
+      console.log(`  ✓ responseTime feedback (${Number(responseTimeScore)/100}% — ${predMs}ms) | tx ${rtTx}`);
+
+      await randomDelay(2000, 4000);
+
+      // Feedback 2: successRate — 100% since tx confirmed successfully
+      const srHash = keccak256(toHex(`successRate-${account.address}-${Date.now()}`));
+      const srTx = await walletClient.writeContract({
+        address:      REPUTATION_REGISTRY,
+        abi:          feedbackAbi,
+        functionName: "giveFeedback",
+        args: [
+          AGENT_ID,
+          10000n,   // 100.00% — tx confirmed successfully
+          2n,
+          "successRate",
+          "",
+          "https://aeco-eight.vercel.app",
+          "",
+          srHash,
+        ],
+      });
+      console.log(`  ✓ successRate feedback (100.00% — tx confirmed) | tx ${srTx}`);
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
