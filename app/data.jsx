@@ -58,6 +58,8 @@ window.SUBJECTS = [
   { id:'africa', name:'Africa Crypto Adoption', ticker:'AFR',   category:'NARRATIVE', signal:'NEUTRAL', score:50, confidence:30, summary:'Loading live data...', updated:'—', delta:0, posts:0, isHybrid:false, nansenFlow:0n, divergenceFlag:false },
   { id:'sol',    name:'SOL',                   ticker:'SOL',   category:'ASSET',     signal:'NEUTRAL', score:50, confidence:40, summary:'Loading live data...', updated:'—', delta:0, posts:0, isHybrid:true,  nansenFlow:0n, divergenceFlag:false },
 ];
+// Leaderboard fallback — prevents PredictScreen crash before live data loads
+window.LEADERBOARD = [];
 
 // Load live data from chain
 (async () => {
