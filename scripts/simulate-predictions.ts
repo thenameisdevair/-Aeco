@@ -95,7 +95,8 @@ function randomDelay(minMs = 3000, maxMs = 12000) {
 
 async function main() {
   // Load wallets
-  const walletsPath = path.join(__dirname, "wallets.json");
+  const walletsPath  = path.join(__dirname, "wallets.json");
+  const starredPath  = path.join(__dirname, "starred.json");
   if (!fs.existsSync(walletsPath)) {
     console.error("wallets.json not found. Run: npx ts-node scripts/generate-wallets.ts");
     process.exit(1);
@@ -104,6 +105,13 @@ async function main() {
     JSON.parse(fs.readFileSync(walletsPath, "utf8"));
 
   console.log(`\nLoaded ${wallets.length} wallets.`);
+
+  // Load set of wallet addresses that have already starred the agent
+  let alreadyStarred: Set<string> = new Set();
+  if (fs.existsSync(starredPath)) {
+    const raw = JSON.parse(fs.readFileSync(starredPath, "utf8")) as string[];
+    alreadyStarred = new Set(raw.map(a => a.toLowerCase()));
+  }
 
   // Public client for reads
   const publicClient = createPublicClient({
@@ -242,6 +250,31 @@ async function main() {
       });
       console.log(`  ✓ successRate feedback (100.00% — tx confirmed) | tx ${srTx}`);
 
+      // Feedback 3: starred — only once per wallet ever
+      if (!alreadyStarred.has(account.address.toLowerCase())) {
+        await randomDelay(1000, 3000);
+        const starHash = keccak256(toHex(`starred-${account.address}-${Date.now()}`));
+        const starTx = await walletClient.writeContract({
+          address:      REPUTATION_REGISTRY,
+          abi:          feedbackAbi,
+          functionName: "giveFeedback",
+          args: [
+            AGENT_ID,
+            10000n,
+            2n,
+            "starred",
+            "",
+            "https://aeco-eight.vercel.app",
+            "",
+            starHash,
+          ],
+        });
+        alreadyStarred.add(account.address.toLowerCase());
+        console.log(`  ✓ Starred agent | tx ${starTx}`);
+      } else {
+        console.log(`  ↷ Already starred from this wallet — skipping`);
+      }
+
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`  ✗ Failed: ${msg.slice(0, 100)}`);
@@ -250,6 +283,10 @@ async function main() {
     // Random delay between wallets
     await randomDelay(5000, 15000);
   }
+
+  // Persist starred wallets so future runs skip them
+  fs.writeFileSync(starredPath, JSON.stringify([...alreadyStarred], null, 2));
+  console.log(`\n✓ Starred set saved to ${starredPath}\n`);
 
   console.log("\n✓ Simulation complete.\n");
 }
