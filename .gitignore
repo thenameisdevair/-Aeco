@@ -5,3 +5,4 @@ contracts/cache/
 contracts/broadcast/
 api/faucet-claims.json
 scripts/wallets.json
+scripts/starred.json
